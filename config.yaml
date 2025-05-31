@@ -1,5 +1,21 @@
 base_url: "https://hackaprompt.com/track/tutorial_competition/getting_started"
 
+# Browser cleanup configuration
+cleanup:
+  # Set to false to disable automatic cleanup (recommended - you manage the browser yourself)
+  enabled: false
+  
+  # Inactivity timeout before auto-cleanup (only used if enabled: true)
+  inactivity_timeout:
+    hours: 1
+    minutes: 30
+  
+  # Whether to close individual tabs or the entire browser instance
+  close_mode: "instance"  # Options: "tabs" or "instance"
+  
+  # Grace period after automation completion before starting inactivity monitoring
+  grace_period_minutes: 5
+
 challenge_specific_configs:
   getting_started:
     # Selectors for the "Getting Started" challenge
