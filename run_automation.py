@@ -24,13 +24,14 @@ class BrowserManager:
                 config = yaml.safe_load(file)
                 return config.get('cleanup', {
                     'enabled': False,
+                    'never_auto_close': True,
                     'inactivity_timeout': {'hours': 1, 'minutes': 30},
                     'close_mode': 'instance',
                     'grace_period_minutes': 5
                 })
         except Exception as e:
             print(f"Warning: Could not load cleanup config: {e}")
-            return {'enabled': False}
+            return {'enabled': False, 'never_auto_close': True}
     
     def check_browser_activity(self):
         """Check if browser has active tabs or recent activity."""
@@ -146,7 +147,7 @@ def main():
     manager = BrowserManager()
     
     automation_profile_dir = "/tmp/brave-automation"
-    brave_command = f"brave-browser --remote-debugging-port=9222 --user-data-dir={automation_profile_dir}"
+    brave_command = f"brave-browser-beta --remote-debugging-port=9222 --user-data-dir={automation_profile_dir}"
     main_script_path = os.path.join("src", "main.py")
     python_executable = sys.executable
 
@@ -187,12 +188,16 @@ def main():
             except KeyboardInterrupt:
                 print("\n🛑 Manual termination requested")
                 manager.stop_activity_monitoring()
-                manager.cleanup_browser()
+                # Only cleanup on manual interrupt if never_auto_close is disabled
+                if not manager.cleanup_config.get('never_auto_close', True):
+                    manager.cleanup_browser()
+                else:
+                    print("🚫 Auto-close disabled - browser left running")
         else:
             print("📌 Browser left running - manage it manually when ready")
 
     except FileNotFoundError:
-        print(f"❌ Error: Could not find brave-browser. Please ensure it's in your PATH.")
+        print(f"❌ Error: Could not find brave-browser-beta. Please ensure it's in your PATH.")
     except KeyboardInterrupt:
         print("\n🛑 Interrupted by user")
     except Exception as e:
@@ -209,9 +214,15 @@ def main():
         
         manager.stop_activity_monitoring()
         
-        # Only cleanup browser if monitoring was never enabled (immediate cleanup mode)
-        if not manager.cleanup_config.get('enabled', False) and manager.brave_process:
-            manager.cleanup_browser()
+        # Check if we should never auto-close the browser
+        never_auto_close = manager.cleanup_config.get('never_auto_close', True)
+        
+        if never_auto_close:
+            print("🚫 Auto-close disabled - browser left running permanently")
+        else:
+            # Only cleanup browser if monitoring was never enabled (immediate cleanup mode)
+            if not manager.cleanup_config.get('enabled', False) and manager.brave_process:
+                manager.cleanup_browser()
         
         print("✨ Cleanup complete.")
 

@@ -5,6 +5,9 @@ cleanup:
   # Set to false to disable automatic cleanup (recommended - you manage the browser yourself)
   enabled: false
   
+  # Never close browser automatically, even on script errors or completion
+  never_auto_close: true
+  
   # Inactivity timeout before auto-cleanup (only used if enabled: true)
   inactivity_timeout:
     hours: 1
