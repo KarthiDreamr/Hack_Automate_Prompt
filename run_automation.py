@@ -161,14 +161,17 @@ def main():
         env["PYTHONPATH"] = src_path
 
     try:
-        print(f"🚀 Starting automation browser: {brave_command}")
-        manager.brave_process = subprocess.Popen(brave_command.split(), 
-                                               stdout=subprocess.DEVNULL, 
-                                               stderr=subprocess.DEVNULL,
-                                               preexec_fn=os.setsid if sys.platform != "win32" else None)
-        print(f"🌐 Browser started with PID: {manager.brave_process.pid}")
-        print("⏳ Waiting for browser to initialize...")
-        time.sleep(5)
+        if manager.check_browser_debugging():
+            print("✅ Detected existing automation browser instance.")
+        else:
+            print(f"🚀 Starting automation browser: {brave_command}")
+            manager.brave_process = subprocess.Popen(brave_command.split(), 
+                                                   stdout=subprocess.DEVNULL, 
+                                                   stderr=subprocess.DEVNULL,
+                                                   preexec_fn=os.setsid if sys.platform != "win32" else None)
+            print(f"🌐 Browser started with PID: {manager.brave_process.pid}")
+            print("⏳ Waiting for browser to initialize...")
+            time.sleep(5)
 
         print(f"⚡ Running automation: {python_executable} {main_script_path}")
         manager.script_process = subprocess.Popen([python_executable, main_script_path], env=env)
