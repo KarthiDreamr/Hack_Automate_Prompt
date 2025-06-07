@@ -60,26 +60,27 @@ async def execute_interaction_test(page: Page, challenge_config: dict):
         await submit_prompt_button.click(timeout=5000)
         print("   Clicked submit prompt button.")
         
-        print("   Waiting for 30 seconds for AI response to complete...")
-        await page.wait_for_timeout(30000) # Changed to 30-second wait
-        print("   Finished 30-second wait.")
-
+        # Wait for the 'Submit for Judging' button to be enabled
+        submit_judging_button: Locator = page.locator(submit_for_judging_button_selector)
+        print(f"   Waiting for '{submit_for_judging_button_selector}' to become enabled...")
+        
+        try:
+            # wait_for, when called on a Locator, defaults to waiting for the element to be visible and enabled.
+            await submit_judging_button.wait_for(timeout=90000) # Wait up to 90s
+            print("   'Submit for Judging' button is now enabled.")
+        except Exception as e:
+            print(f"   Timeout or error waiting for 'Submit for Judging' button to be enabled: {e}")
+            # Decide if you want to proceed or raise an error. For now, we'll try to proceed.
+        
         # --- Step 3: Submit for Judging --- 
         print(f"3. Attempting to click 'Submit for Judging' button ('{submit_for_judging_button_selector}')...")
-        submit_judging_button: Locator = page.locator(submit_for_judging_button_selector)
         judging_button_successfully_clicked = False
         challenge_failed_and_restarted = False # Flag to track if "Restart Challenge" was clicked
 
         try:
-            if await submit_judging_button.is_disabled(timeout=1000):
-                print("   'Submit for Judging' button is still disabled after 30s wait. Attempting click anyway if visible.")
-            
-            if await submit_judging_button.is_visible(timeout=5000):
-                await submit_judging_button.click(timeout=10000)
-                print("   Successfully attempted click on 'Submit for Judging' button.")
-                judging_button_successfully_clicked = True
-            else:
-                print("   'Submit for Judging' button is not visible after 30s wait.")
+            await submit_judging_button.click(timeout=10000)
+            print("   Successfully attempted click on 'Submit for Judging' button.")
+            judging_button_successfully_clicked = True
             
             await page.wait_for_timeout(3000) # Pause for potential modal
 
