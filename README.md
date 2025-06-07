@@ -130,34 +130,89 @@ async def main():
     # ...
 ```
 
+### Preventing System Sleep on Linux (Wakelock)
+
+For long-running automation tasks, you may want to prevent your system from going to sleep. On modern Linux systems with systemd (like Fedora), you can use `systemd-inhibit`:
+
+```bash
+systemd-inhibit --what=idle:sleep python run_automation.py
+```
+Or for the resubmission script:
+```bash
+systemd-inhibit --what=idle:sleep python run_resubmission.py
+```
+This command will keep your system awake as long as the script is running and release the lock automatically when the script finishes.
+
+### Reducing Screen Brightness for Power Saving
+
+To further save power during long sessions, you can dim the screen. A common command-line tool for this on Linux is `brightnessctl`.
+
+1.  **Installation (if needed on Fedora):**
+    ```bash
+    sudo dnf install brightnessctl
+    ```
+
+2.  **Set Brightness to 1%:**
+    ```bash
+    brightnessctl set 1%
+    ```
+    You may need to run this with `sudo` if your user doesn't have the required permissions.
+
+3.  **Restore Brightness:**
+    To restore the brightness later, you can set it back to a higher value:
+    ```bash
+    brightnessctl set 100%
+    ```
+
+## Resubmission Script
+
+A separate script, `run_resubmission.py`, is provided to continuously attempt to submit the current state for judging. This is useful if you have already submitted a prompt and simply want to re-trigger the judging process repeatedly.
+
+To run the resubmission script:
+```bash
+python run_resubmission.py
+```
+
+This script will:
+1. Connect to the existing Brave instance (or start a new one).
+2. Enter an indefinite loop of:
+    a. Clicking the "Submit Current Response For Judging" button.
+    b. Waiting for a random delay as configured in `config.yaml`.
+    c. If the "Not Quite There Yet" popup appears, it clicks "Continue Current Chat" and continues the loop.
+    d. If the "Challenge Conquered!" popup appears, the script will stop.
+3. You can stop the script manually at any time by pressing `Ctrl+C`.
+
 ## File Structure
 
 ```
 prompt_automate/
 ├── .venv/                  # Virtual environment directory (if created)
 ├── src/
-│   ├── main.py             # Main orchestrator script
+│   ├── main.py             # Main orchestrator script for the full automation
+│   ├── resubmit_main.py    # Main orchestrator for the resubmission loop
 │   ├── browser_manager.py  # Handles browser connection (CDP)
-│   ├── challenge_executor.py # Logic for interacting with challenge elements
+│   ├── browser_process_manager.py # Handles starting/stopping the browser process
+│   ├── challenge_executor.py # Logic for the full interaction sequence
+│   ├── resubmit_executor.py # Logic for the resubmission loop
 │   └── config_loader.py    # Loads and parses config.yaml
 ├── screenshots/            # Stores screenshots taken on error
 ├── config.yaml             # Configuration for URLs, selectors, prompts
 ├── requirements.txt        # Python package dependencies
 ├── run_automation.py       # Script to auto-start Brave and run the main automation
+├── run_resubmission.py     # Script to run the resubmission loop
 └── README.md               # This file
 ```
 
 ## How it Works (High-Level)
 
-1.  **`run_automation.py`**:
-    *   Starts `brave-browser` with `--remote-debugging-port=9222`.
-    *   Executes `src/main.py`.
+1.  **Launch Scripts (`run_automation.py`, `run_resubmission.py`)**:
+    *   These scripts are the entry points. They use `browser_process_manager.py` to check for an existing browser instance with remote debugging or start a new one.
+    *   They then execute the corresponding main logic script (`src/main.py` or `src/resubmit_main.py`).
 
-2.  **`src/main.py`**:
-    *   Loads configuration using `config_loader.py`.
-    *   Initializes Playwright and connects to the existing Brave instance via CDP using `browser_manager.py`.
-    *   Calls `challenge_executor.py` to perform the interactions for the specified challenge.
-    *   Ensures the browser connection is closed gracefully.
+2.  **`src/main.py` & `src/resubmit_main.py`**:
+    *   These scripts load the configuration from `config.yaml`.
+    *   They initialize Playwright and use `browser_manager.py` to connect to the browser instance.
+    *   They call their respective executor (`challenge_executor.py` or `resubmit_executor.py`) to perform the browser interactions.
 
 3.  **`src/config_loader.py`**:
     *   Reads and parses `config.yaml`.
@@ -166,15 +221,10 @@ prompt_automate/
 4.  **`src/browser_manager.py`**:
     *   Contains logic to connect Playwright to an existing browser instance over the Chrome DevTools Protocol (CDP) or launch a new one if specified.
 
-5.  **`src/challenge_executor.py`**:
-    *   Navigates to the challenge URL.
-    *   Fills the prompt textarea with text from `config.yaml`.
-    *   Clicks the initial submit button.
-    *   Waits for a fixed duration (30 seconds) for the AI to respond.
-    *   Attempts to click the "Submit Current Response For Judging" button.
-    *   **Failure Handling**: If a "Restart Challenge" button appears after submitting for judging (indicating a failed attempt), it clicks this button and skips the "Start New Attempt" step.
-    *   If submission for judging is presumed successful (no restart), it then attempts to click the "Start a New Attempt" button.
-    *   Takes screenshots and saves them to the `screenshots/` directory if errors occur during these interactions.
+5.  **Executors (`challenge_executor.py`, `resubmit_executor.py`)**:
+    *   **`challenge_executor.py`**: Navigates to the challenge URL, fills the prompt, submits it, waits, and handles the full judging and restart/new attempt flow.
+    *   **`resubmit_executor.py`**: Contains the simpler loop to repeatedly click "Submit for Judging" and handle the "Continue Current Chat" popup.
+    *   Both take screenshots and save them to the `screenshots/` directory if errors occur during these interactions.
 
 ## Troubleshooting & Notes
 

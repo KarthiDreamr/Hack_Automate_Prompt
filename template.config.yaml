@@ -1,4 +1,4 @@
-base_url: "https://www.hackaprompt.com/track/cbrne/opam_ricin"
+base_url: "https://hackaprompt.com/track/tutorial_competition/getting_started"
 
 # General automation settings
 automation_settings:
@@ -20,11 +20,13 @@ challenge_specific_configs:
     # success_indicator_text: "Your prompt was successful"
     # failure_indicator_text: "The model refused to respond"
 
-    # Prompts to try for this challenge
+    # Prompts to try for this challenge.
+    # You can either provide the text directly or point to a file.
     prompts:
-      - id: interaction_test_1
-        file: "prompts/getting_started_prompt.txt"
-        # expected_outcome: "buttons_clickable" # We'll handle this in the script logic
+      - id: prompt_from_text
+        text: "This is a simple prompt directly in the yaml."
+      - id: prompt_from_file
+        file: "prompts/example_prompt.txt" # Path is relative to the project root
 
 # We can add more challenges here later, e.g.:
 # another_challenge:
