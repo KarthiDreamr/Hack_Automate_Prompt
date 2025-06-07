@@ -1,2 +1,3 @@
 .venv/
 screenshots/
+__pycache__/
