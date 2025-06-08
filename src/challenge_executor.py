@@ -1,4 +1,5 @@
 import random
+import time
 from playwright.async_api import Page
 import os
 import logging
@@ -97,6 +98,25 @@ async def _handle_failure_and_restart(page: Page) -> bool:
     return False
 
 
+async def _handle_judging_failure(page: Page, challenge_name: str) -> bool:
+    """Handles the visible judging failure popup by clicking 'Continue Current Chat'."""
+    continue_button_selector = "button:has-text('Continue Current Chat')"
+    continue_button = page.locator(continue_button_selector)
+
+    logging.info("'Not Quite There Yet' popup confirmed. Looking for 'Continue' button.")
+    try:
+        await continue_button.wait_for(state="visible", timeout=5000)
+        logging.info("Clicking 'Continue Current Chat'.")
+        await continue_button.click(timeout=5000)
+        return True
+    except Exception:
+        logging.warning("'Continue Current Chat' button not found on failure popup.")
+        await _take_screenshot(
+            page, challenge_name, "failure_popup_no_continue_button"
+        )
+        return False
+
+
 class ChallengeExecutor:
     def __init__(self, page: Page, challenge_config: dict, automation_settings: dict):
         self.page = page
@@ -108,7 +128,9 @@ class ChallengeExecutor:
 
     async def run(self):
         """Executes the defined interaction test sequence for a challenge."""
-        if not self._validate_config():
+        if not self._validate_config(
+            ["base_url", "prompt_textarea", "submit_prompt_button", "submit_for_judging_button"]
+        ):
             return
 
         if self.automation_settings.get("navigate_to_base_url", True):
@@ -170,7 +192,7 @@ class ChallengeExecutor:
 
     async def run_judging_loop(self):
         """Runs a loop that repeatedly clicks the 'Submit for Judging' button."""
-        if not self._validate_config():
+        if not self._validate_config(["submit_for_judging_button"]):
             return
 
         max_retries = self.automation_settings.get("max_retries", 10)
@@ -183,29 +205,59 @@ class ChallengeExecutor:
 
             if not judging_clicked:
                 logging.error("Failed to click judging button, stopping.")
-                await _take_screenshot(self.page, self.challenge_name, "judging_loop_failed")
+                await _take_screenshot(
+                    self.page, self.challenge_name, "judging_loop_failed"
+                )
                 break
 
             await self._perform_step_delay()
 
-            if await _check_for_success(self.page):
+            # Wait for either success or failure popup
+            success_selector = 'h2:has-text("Challenge Conquered! 🎉")'
+            failure_selector = 'h2:has-text("Not Quite There Yet 💪")'
+
+            total_wait_sec = self.automation_settings.get("judging_timeout_sec", 180)
+            logging.info(f"Waiting for judging result (up to {total_wait_sec} seconds)...")
+
+            start_time = time.time()
+            outcome = None
+            while time.time() - start_time < total_wait_sec:
+                if await self.page.locator(success_selector).is_visible():
+                    outcome = "success"
+                    break
+                if await self.page.locator(failure_selector).is_visible():
+                    outcome = "failure"
+                    break
+                await self.page.wait_for_timeout(500)  # poll every 500ms
+
+            if outcome == "success":
                 logging.info("Challenge Conquered! Stopping judging loop.")
                 break
-
-            if await _handle_failure_and_restart(self.page):
-                logging.info("Challenge failed, restarting for another attempt.")
-            else:
+            elif outcome == "failure":
+                if await _handle_judging_failure(self.page, self.challenge_name):
+                    logging.info("Challenge failed, continuing to next attempt.")
+                    continue
+                else:
+                    logging.error(
+                        "Failure popup detected, but could not be handled. Stopping."
+                    )
+                    await _take_screenshot(
+                        self.page, self.challenge_name, "judging_failure_unhandled"
+                    )
+                    break
+            else:  # Timeout
                 logging.warning(
                     "Submission did not result in a clear success or failure state."
                 )
                 await _take_screenshot(
                     self.page, self.challenge_name, "unknown_state_after_judging"
                 )
+                break
         logging.info("Judging loop finished.")
 
     async def run_resubmission_loop(self, submission_id: str):
         """Runs a loop that repeatedly clicks the 'Submit for Judging' button."""
-        if not self._validate_config():
+        if not self._validate_config(["base_url", "submit_for_judging_button"]):
             return
 
         resubmission_url = (
@@ -251,23 +303,20 @@ class ChallengeExecutor:
                 )
         logging.info("Resubmission loop finished.")
 
-    def _validate_config(self) -> bool:
-        """Validates that all necessary configuration is present."""
-        required_keys = [
-            "base_url",
-            "prompt_textarea",
-            "submit_prompt_button",
-            "submit_for_judging_button",
-        ]
-        if not all(key in self.challenge_config for key in required_keys):
-            logging.error(
-                "Missing one or more essential selectors/config in challenge_config."
-            )
+    def _validate_config(self, required_keys: list[str]) -> bool:
+        """Validates that the essential configuration keys are present."""
+        if self.challenge_config is None:
+            logging.error("challenge_config is not loaded.")
             return False
+
+        for key in required_keys:
+            if key not in self.challenge_config:
+                logging.error(f"Missing required key '{key}' in challenge_config.")
+                return False
         return True
 
     def _get_prompt_text(self) -> str:
-        """Gets the prompt text from the configuration."""
+        """Returns the prompt text, either from a list or a single string."""
         prompts_config = self.challenge_config.get("prompts")
         if prompts_config and len(prompts_config) > 0:
             return prompts_config[0].get("text", "Default test prompt")

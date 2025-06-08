@@ -30,6 +30,12 @@ This command runs the full automation loop: fills the prompt, submits it, clicks
 ```bash
 python -m src.app run [challenge_name]
 ```
+
+Ex: 
+```bash
+python -m src.app run getting_started
+```
+
 *   `challenge_name`: The name of the challenge defined in your `config.yaml` (defaults to `getting_started`).
 
 ### Run the Judging Loop
@@ -40,6 +46,11 @@ This command repeatedly clicks the "Submit for Judging" button. This is useful i
 python -m src.app judge [challenge_name]
 ```
 
+Ex: 
+```bash
+python -m src.app judge getting_started
+```
+
 ### Resubmit a Previous Attempt
 
 This command navigates to a specific submission and re-triggers the judging process.
@@ -47,6 +58,7 @@ This command navigates to a specific submission and re-triggers the judging proc
 ```bash
 python -m src.app resubmit <submission_id>
 ```
+
 
 ## Documentation
 
