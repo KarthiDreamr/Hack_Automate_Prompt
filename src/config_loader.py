@@ -1,9 +1,11 @@
 import yaml
+import os
+
 
 def load_config(config_path="config.yaml"):
     """Loads the YAML configuration file."""
     try:
-        with open(config_path, 'r') as f:
+        with open(config_path, "r") as f:
             config = yaml.safe_load(f)
             if not config:
                 print(f"Warning: {config_path} is empty or invalid.")
@@ -16,39 +18,37 @@ def load_config(config_path="config.yaml"):
         print(f"Error parsing YAML in '{config_path}': {e}")
         return None
 
-def get_challenge_config(config, challenge_name):
+
+def get_challenge_config(main_config: dict, challenge_name: str) -> dict | None:
     """
-    Extracts and processes the configuration for a specific challenge.
-    If a prompt has a 'file' key, it reads the content of the file
-    and populates the 'text' key.
+    Retrieves a challenge-specific configuration and merges it with the base_url.
     """
-    if not config:
-        return None
-    base_url = config.get("base_url")
-    if not base_url:
+    if "base_url" not in main_config:
         print("Error: base_url not found in the main config.")
         return None
 
-    challenge_conf = config.get("challenge_specific_configs", {}).get(challenge_name)
-    if not challenge_conf:
+    challenge_configs = main_config.get("challenge_specific_configs", {})
+    challenge_config = challenge_configs.get(challenge_name)
+
+    if not challenge_config:
         print(f"Error: Config for challenge '{challenge_name}' not found.")
         return None
-    
-    # Process prompts to load from files if specified
-    if 'prompts' in challenge_conf and isinstance(challenge_conf['prompts'], list):
-        for i, prompt in enumerate(challenge_conf['prompts']):
-            if 'file' in prompt and 'text' not in prompt:
-                try:
-                    with open(prompt['file'], 'r', encoding='utf-8') as f:
-                        prompt['text'] = f.read()
-                    print(f"   ...loaded prompt '{prompt.get('id', i)}' from file: {prompt['file']}")
-                except FileNotFoundError:
-                    print(f"Error: Prompt file not found: {prompt['file']}. Skipping prompt.")
-                    prompt['text'] = f"ERROR: Could not load prompt from {prompt['file']}"
-                except Exception as e:
-                    print(f"Error reading prompt file {prompt['file']}: {e}. Skipping prompt.")
-                    prompt['text'] = f"ERROR: Could not read prompt from {prompt['file']}"
 
-    # Ensure base_url is part of the returned challenge config for convenience
-    challenge_conf['base_url'] = base_url
-    return challenge_conf 
+    # Merge the base_url into the specific challenge config
+    challenge_config["base_url"] = main_config["base_url"]
+    return challenge_config
+
+
+def _load_prompt_from_file(prompt_config: dict, config_dir: str) -> dict:
+    """
+    Loads prompt text from a file specified in the prompt's configuration.
+    """
+    prompt_file_path = os.path.join(config_dir, "..", prompt_config["file"])
+    if not os.path.exists(prompt_file_path):
+        print(f"Warning: Prompt file not found: {prompt_file_path}")
+        prompt_config["text"] = ""
+        return prompt_config
+
+    with open(prompt_file_path, "r") as f:
+        prompt_config["text"] = f.read().strip()
+    return prompt_config

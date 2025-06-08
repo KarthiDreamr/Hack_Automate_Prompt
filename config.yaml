@@ -1,9 +1,15 @@
-base_url: "https://www.hackaprompt.com/track/cbrne/opam_ricin"
+base_url: "https://www.hackaprompt.com/track/pliny/pliny_4_challenge"
 
 # General automation settings
 automation_settings:
+  browser_executable_path: "brave-browser-beta"
+  user_data_dir: "/tmp/brave-automation"
+  remote_debugging_port: 9222
+  browser_ws_endpoint: "http://localhost:9222"
+  navigate_to_base_url: false
   loop_on_failure: true
-  random_delay: true
+  max_retries: 3
+  random_delay: false
   delay_min_sec: 5
   delay_max_sec: 60
 

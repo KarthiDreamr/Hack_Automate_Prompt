@@ -1,0 +1,7 @@
+playwright
+PyYAML
+requests
+pytest
+pytest-asyncio
+black
+flake8 
