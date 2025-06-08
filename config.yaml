@@ -8,50 +8,31 @@ automation_settings:
   browser_ws_endpoint: "http://localhost:9222"
   navigate_to_base_url: false
   loop_on_failure: true
-  max_retries: 3
-  random_delay: false
-  delay_min_sec: 5
-  delay_max_sec: 60
+  max_retries: 100
+  random_delay: true
+  delay_min_sec: 7
+  delay_max_sec: 30
 
-challenge_specific_configs:
-  getting_started:
-    # Selectors for the "Getting Started" challenge
-    # We will need to inspect the page to get these accurately
-    prompt_textarea: "textarea[data-testid='multimodal-input']"
-    submit_prompt_button: "button[data-testid='send-button']" # Renamed for clarity
-    submit_for_judging_button: "button:has-text('Submit Current Response For Judging')"
-    new_attempt_button: "button:has-text('Start a New Attempt')"
-    # Example of what a success/failure indicator might look like - needs inspection
-    # response_area: "div.chat-response-area" 
-    # success_indicator_text: "Your prompt was successful"
-    # failure_indicator_text: "The model refused to respond"
+# Page element selectors for the challenge
+selectors:
+  # These selectors will need to be verified by inspecting the page
+  prompt_textarea: "textarea[data-testid='multimodal-input']"
+  submit_prompt_button: "button[data-testid='send-button']"
+  submit_for_judging_button: "button:has-text('Submit Current Response For Judging')"
+  new_attempt_button: "button:has-text('Start a New Attempt')"
+  # Example success/failure indicators (needs inspection)
+  # response_area: "div.chat-response-area"
+  # success_indicator_text: "Your prompt was successful"
+  # failure_indicator_text: "The model refused to respond"
 
-    # Prompts to try for this challenge
-    prompts:
-      - id: interaction_test_1
-        file: "prompts/getting_started_prompt.txt"
-        # expected_outcome: "buttons_clickable" # We'll handle this in the script logic
-
-# We can add more challenges here later, e.g.:
-# another_challenge:
-#   prompt_textarea: "some_other_selector"
-#   submit_button: "yet_another_selector"
-#   prompts: [...] 
-
-
-
-
-
-
-
-
-
-
-
+# Prompts to try for the challenge
+prompts:
+  - file: "prompts/prompt_1.txt"
+    # The script logic will handle the expected outcome, e.g., "buttons_clickable"
 
 # Browser cleanup configuration
 cleanup:
-  # Set to false to disable automatic cleanup (recommended - you manage the browser yourself)
+  # Set to false to disable automatic cleanup (recommended for manual browser management)
   enabled: false
   
   # Never close browser automatically, even on script errors or completion

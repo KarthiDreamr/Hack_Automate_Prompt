@@ -10,18 +10,33 @@ logging.basicConfig(
 )
 
 
-async def _take_screenshot(page: Page, challenge_name: str, stage: str):
+async def _take_screenshot(page: Page, stage: str):
     """Takes a screenshot and saves it to the screenshots directory."""
     screenshots_dir = "screenshots"
     os.makedirs(screenshots_dir, exist_ok=True)
     screenshot_path = os.path.join(
-        screenshots_dir, f"error_{stage}_{challenge_name}.png"
+        screenshots_dir, f"error_{stage}.png"
     )
     try:
         await page.screenshot(path=screenshot_path)
         logging.info(f"Screenshot saved to {screenshot_path}")
     except Exception as e:
         logging.error(f"Could not take screenshot: {e}")
+
+
+def _load_prompt_from_file(prompt_config: dict, config_dir: str) -> dict:
+    """
+    Loads prompt text from a file specified in the prompt's configuration.
+    """
+    prompt_file_path = os.path.join(config_dir, prompt_config["file"])
+    if not os.path.exists(prompt_file_path):
+        print(f"Warning: Prompt file not found: {prompt_file_path}")
+        prompt_config["text"] = ""
+        return prompt_config
+
+    with open(prompt_file_path, "r") as f:
+        prompt_config["text"] = f.read().strip()
+    return prompt_config
 
 
 async def _perform_delay(
@@ -86,19 +101,23 @@ async def _check_for_success(page: Page) -> bool:
 
 
 async def _handle_failure_and_restart(page: Page) -> bool:
-    """Checks for the failure popup and clicks 'Restart Challenge' if found."""
+    """Clicks 'Restart Challenge' assuming the failure popup is already visible."""
     restart_selector = "button:has-text('Restart Challenge')"
-    restart_button = page.locator(restart_selector)
-    if await restart_button.is_visible(timeout=5000):
+    try:
         logging.info(
-            "'Not Quite There Yet' popup detected. Clicking 'Restart Challenge'."
+            "'Not Quite There Yet' popup confirmed. Clicking 'Restart Challenge'."
         )
-        await restart_button.click(timeout=5000)
+        await page.locator(restart_selector).click(timeout=5000)
         return True
-    return False
+    except Exception:
+        logging.warning(
+            "'Restart Challenge' button not found or clickable on failure popup."
+        )
+        await _take_screenshot(page, "failure_popup_no_restart_button")
+        return False
 
 
-async def _handle_judging_failure(page: Page, challenge_name: str) -> bool:
+async def _handle_judging_failure(page: Page) -> bool:
     """Handles the visible judging failure popup by clicking 'Continue Current Chat'."""
     continue_button_selector = "button:has-text('Continue Current Chat')"
     continue_button = page.locator(continue_button_selector)
@@ -111,230 +130,226 @@ async def _handle_judging_failure(page: Page, challenge_name: str) -> bool:
         return True
     except Exception:
         logging.warning("'Continue Current Chat' button not found on failure popup.")
-        await _take_screenshot(
-            page, challenge_name, "failure_popup_no_continue_button"
-        )
+        await _take_screenshot(page, "failure_popup_no_continue_button")
         return False
 
 
 class ChallengeExecutor:
-    def __init__(self, page: Page, challenge_config: dict, automation_settings: dict):
+    def __init__(self, page: Page, config: dict, automation_settings: dict):
         self.page = page
-        self.challenge_config = challenge_config
+        self.config = config
         self.automation_settings = automation_settings
-        self.challenge_name = challenge_config.get(
-            "challenge_name", "unknown_challenge"
-        )
 
     async def run(self):
         """Executes the defined interaction test sequence for a challenge."""
         if not self._validate_config(
-            ["base_url", "prompt_textarea", "submit_prompt_button", "submit_for_judging_button"]
+            ["base_url", "selectors", "prompts"]
         ):
             return
 
         if self.automation_settings.get("navigate_to_base_url", True):
-            await _navigate_to_challenge(self.page, self.challenge_config["base_url"])
+            await _navigate_to_challenge(self.page, self.config["base_url"])
 
-        prompt_text = self._get_prompt_text()
+        prompts = self._get_prompts()
+        if not prompts:
+            logging.error("No valid prompts found in the configuration.")
+            return
+            
         max_retries = (
             self.automation_settings.get("max_retries", 1)
             if self.automation_settings.get("loop_on_failure", True)
             else 1
         )
 
-        for attempt in range(max_retries):
-            logging.info(
-                f"\n--- Running Interaction Test for '{self.challenge_name}' (Attempt {attempt + 1}/{max_retries}) ---"
-            )
+        for prompt in prompts:
+            prompt_text = prompt.get("text")
+            if not prompt_text:
+                continue
 
-            await self._perform_step_delay()
-            await _fill_prompt_and_submit(
-                self.page,
-                self.challenge_config["prompt_textarea"],
-                self.challenge_config["submit_prompt_button"],
-                prompt_text,
-            )
-
-            await self._perform_step_delay()
-            judging_clicked = await _submit_for_judging(
-                self.page, self.challenge_config["submit_for_judging_button"]
-            )
-
-            if not judging_clicked:
-                await _take_screenshot(
-                    self.page, self.challenge_name, "submit_for_judging_failed"
-                )
-                continue  # Try again
-
-            await self._perform_step_delay()
-
-            if await _check_for_success(self.page):
+            for attempt in range(max_retries):
                 logging.info(
-                    f"Challenge '{self.challenge_name}' successfully completed."
+                    f"\n--- Running Interaction Test (Attempt {attempt + 1}/{max_retries}) ---"
                 )
-                return  # Exit the loop and function on success
+                logging.info(f"Using prompt: {prompt_text[:80]}...")
 
-            restarted = await _handle_failure_and_restart(self.page)
-            if restarted:
-                logging.info("Challenge failed, restarting for another attempt.")
-                continue  # Continue to the next attempt
-            else:
+                await self._perform_step_delay()
+                await _fill_prompt_and_submit(
+                    self.page,
+                    self.config["selectors"]["prompt_textarea"],
+                    self.config["selectors"]["submit_prompt_button"],
+                    prompt_text,
+                )
+
+                await self._perform_step_delay()
+                judging_clicked = await _submit_for_judging(
+                    self.page, self.config["selectors"]["submit_for_judging_button"]
+                )
+
+                if not judging_clicked:
+                    await _take_screenshot(
+                        self.page, "submit_for_judging_failed"
+                    )
+                    continue  # Try again
+
+                await self._perform_step_delay()
+
+                outcome = await self._wait_for_judging_outcome()
+
+                if outcome == "success":
+                    logging.info(
+                        "Challenge successfully completed."
+                    )
+                    return  # Exit after first success
+
+                elif outcome == "failure":
+                    restarted = await _handle_failure_and_restart(self.page)
+                    if restarted:
+                        logging.info(
+                            "Challenge failed, restarting for another attempt."
+                        )
+                        continue
+                    else:
+                        logging.warning(
+                            "Submission resulted in a failure that could not be handled. Breaking from retries for this prompt."
+                        )
+                        await _take_screenshot(
+                            self.page, "unhandled_failure_after_judging"
+                        )
+                        break  # Exit loop for this prompt
+
+                else:  # timeout
+                    logging.warning(
+                        "Submission did not result in a clear success or failure state."
+                    )
+                    await _take_screenshot(self.page, "unknown_state_after_judging")
+                    break  # Exit loop for this prompt
+            else:  # Timeout
                 logging.warning(
                     "Submission did not result in a clear success or failure state."
                 )
-                await _take_screenshot(
-                    self.page, self.challenge_name, "unknown_state_after_judging"
-                )
-                break  # Exit loop if not a clear failure that was restarted
+                await _take_screenshot(self.page, "unknown_state_after_judging")
+                break  # Exit loop for this prompt
 
         logging.info("Interaction test sequence processing completed.")
 
     async def run_judging_loop(self):
         """Runs a loop that repeatedly clicks the 'Submit for Judging' button."""
-        if not self._validate_config(["submit_for_judging_button"]):
+        if not self._validate_config(["selectors"]):
             return
 
         max_retries = self.automation_settings.get("max_retries", 10)
 
         for attempt in range(max_retries):
             logging.info(f"--- Judging Attempt {attempt + 1}/{max_retries} ---")
-            judging_clicked = await _submit_for_judging(
-                self.page, self.challenge_config["submit_for_judging_button"]
-            )
 
-            if not judging_clicked:
-                logging.error("Failed to click judging button, stopping.")
-                await _take_screenshot(
-                    self.page, self.challenge_name, "judging_loop_failed"
-                )
-                break
-
-            await self._perform_step_delay()
-
-            # Wait for either success or failure popup
-            success_selector = 'h2:has-text("Challenge Conquered! 🎉")'
-            failure_selector = 'h2:has-text("Not Quite There Yet 💪")'
-
-            total_wait_sec = self.automation_settings.get("judging_timeout_sec", 180)
-            logging.info(f"Waiting for judging result (up to {total_wait_sec} seconds)...")
-
-            start_time = time.time()
-            outcome = None
-            while time.time() - start_time < total_wait_sec:
-                if await self.page.locator(success_selector).is_visible():
-                    outcome = "success"
-                    break
-                if await self.page.locator(failure_selector).is_visible():
-                    outcome = "failure"
-                    break
-                await self.page.wait_for_timeout(500)  # poll every 500ms
+            outcome = await self._submit_and_wait_for_judging_outcome()
 
             if outcome == "success":
                 logging.info("Challenge Conquered! Stopping judging loop.")
                 break
             elif outcome == "failure":
-                if await _handle_judging_failure(self.page, self.challenge_name):
+                if await _handle_judging_failure(self.page):
                     logging.info("Challenge failed, continuing to next attempt.")
                     continue
                 else:
                     logging.error(
                         "Failure popup detected, but could not be handled. Stopping."
                     )
-                    await _take_screenshot(
-                        self.page, self.challenge_name, "judging_failure_unhandled"
-                    )
+                    await _take_screenshot(self.page, "judging_failure_unhandled")
                     break
             else:  # Timeout
                 logging.warning(
-                    "Submission did not result in a clear success or failure state."
-                )
-                await _take_screenshot(
-                    self.page, self.challenge_name, "unknown_state_after_judging"
+                    "Submission did not result in a clear success or failure state. Stopping."
                 )
                 break
         logging.info("Judging loop finished.")
 
-    async def run_resubmission_loop(self, submission_id: str):
-        """Runs a loop that repeatedly clicks the 'Submit for Judging' button."""
-        if not self._validate_config(["base_url", "submit_for_judging_button"]):
-            return
-
-        resubmission_url = (
-            f"{self.challenge_config['base_url']}/submission/{submission_id}"
+    async def _submit_and_wait_for_judging_outcome(self) -> str:
+        """
+        Submits for judging, waits for the result, and returns the outcome.
+        Possible outcomes: "success", "failure", "timeout".
+        """
+        judging_clicked = await _submit_for_judging(
+            self.page, self.config["selectors"]["submit_for_judging_button"]
         )
-        logging.info(f"Navigating to resubmission URL: {resubmission_url}")
-        await self.page.goto(resubmission_url)
+        if not judging_clicked:
+            return "failure"  # Error already logged in _submit_for_judging
 
-        max_retries = self.automation_settings.get("max_retries", 10)
+        await self._perform_step_delay()
 
-        for attempt in range(max_retries):
-            logging.info(f"--- Resubmission Attempt {attempt + 1}/{max_retries} ---")
-            judging_clicked = await _submit_for_judging(
-                self.page, self.challenge_config["submit_for_judging_button"]
-            )
+        return await self._wait_for_judging_outcome()
 
-            if not judging_clicked:
-                logging.error("Failed to click judging button, stopping.")
-                await _take_screenshot(
-                    self.page, self.challenge_name, "resubmission_loop_failed"
-                )
+    async def _wait_for_judging_outcome(self) -> str:
+        """
+        Waits for the result of judging and returns the outcome.
+        Possible outcomes: "success", "failure", "timeout".
+        """
+        success_selector = 'h2:has-text("Challenge Conquered! 🎉")'
+        failure_selector = 'h2:has-text("Not Quite There Yet 💪")'
+
+        total_wait_sec = self.automation_settings.get("judging_timeout_sec", 180)
+        logging.info(f"Waiting for judging result (up to {total_wait_sec} seconds)...")
+
+        start_time = time.time()
+        outcome = "timeout"
+        while time.time() - start_time < total_wait_sec:
+            if await self.page.locator(success_selector).is_visible():
+                logging.info("Success condition met: Challenge Conquered! 🎉")
+                outcome = "success"
                 break
-
-            await self._perform_step_delay()
-
-            if await _check_for_success(self.page):
-                logging.info("Challenge Conquered! Stopping resubmission loop.")
+            if await self.page.locator(failure_selector).is_visible():
+                logging.info("Failure condition met: Not Quite There Yet 💪")
+                outcome = "failure"
                 break
+            await self.page.wait_for_timeout(500)
 
-            # In resubmission, we look for a "Continue" button instead of "Restart"
-            continue_button = self.page.locator("button:has-text('Continue Current Chat')")
-            if await continue_button.is_visible(timeout=5000):
-                logging.info("Popup detected. Clicking 'Continue Current Chat'.")
-                await continue_button.click(timeout=5000)
-            else:
-                logging.warning(
-                    "Submission did not result in a clear success or continue state."
-                )
-                await _take_screenshot(
-                    self.page,
-                    f"resubmission_{submission_id}",
-                    "unknown_state_after_judging",
-                )
-        logging.info("Resubmission loop finished.")
+        if outcome == "timeout":
+            logging.warning("Timed out waiting for judging result.")
+            await _take_screenshot(self.page, "judging_timeout")
+
+        return outcome
 
     def _validate_config(self, required_keys: list[str]) -> bool:
-        """Validates that the essential configuration keys are present."""
-        if self.challenge_config is None:
-            logging.error("challenge_config is not loaded.")
-            return False
-
+        """Validates that the required keys are in the config."""
         for key in required_keys:
-            if key not in self.challenge_config:
-                logging.error(f"Missing required key '{key}' in challenge_config.")
+            if key not in self.config:
+                logging.error(f"Missing required key in config: '{key}'")
                 return False
+        if "selectors" in required_keys:
+            for selector in ["prompt_textarea", "submit_prompt_button", "submit_for_judging_button"]:
+                if selector not in self.config.get("selectors", {}):
+                    logging.error(f"Missing required selector in config: '{selector}'")
+                    return False
         return True
 
-    def _get_prompt_text(self) -> str:
-        """Returns the prompt text, either from a list or a single string."""
-        prompts_config = self.challenge_config.get("prompts")
-        if prompts_config and len(prompts_config) > 0:
-            return prompts_config[0].get("text", "Default test prompt")
-        return "Default test prompt"
+    def _get_prompts(self) -> list[dict]:
+        """
+        Loads all prompts from the configuration, processing file links as needed.
+        """
+        prompts = self.config.get("prompts", [])
+        loaded_prompts = []
+        for prompt_config in prompts:
+            if "file" in prompt_config:
+                # Correct the path to be relative to the project root (where config.yaml is)
+                config_dir = os.path.dirname(os.path.abspath("config.yaml"))
+                loaded_prompts.append(_load_prompt_from_file(prompt_config, config_dir))
+            elif "text" in prompt_config:
+                loaded_prompts.append(prompt_config)
+        return loaded_prompts
 
     async def _perform_step_delay(self):
-        """Performs a delay based on automation settings."""
+        """Performs a delay if configured."""
         await _perform_delay(
-            self.automation_settings.get("random_delay", True),
-            self.automation_settings.get("delay_min_sec", 5),
-            self.automation_settings.get("delay_max_sec", 60),
+            self.automation_settings.get("random_delay", False),
+            self.automation_settings.get("delay_min_sec", 1),
+            self.automation_settings.get("delay_max_sec", 5),
             self.page,
         )
 
 
 async def execute_interaction_test(
-    page: Page, challenge_config: dict, automation_settings: dict
+    page: Page, config: dict, automation_settings: dict
 ):
     """Executes the defined interaction test sequence for a challenge."""
-    executor = ChallengeExecutor(page, challenge_config, automation_settings)
+    executor = ChallengeExecutor(page, config, automation_settings)
     await executor.run()

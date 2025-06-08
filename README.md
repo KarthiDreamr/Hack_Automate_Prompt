@@ -23,42 +23,30 @@ This project provides a framework to automate interactions with challenges on `h
 
 ## Commands
 
-### Run the Full Challenge Loop
+### Run the Full Automation Loop
 
-This command runs the full automation loop: fills the prompt, submits it, clicks "Submit for Judging", and restarts on failure.
+This command runs the full automation loop: it iterates through the prompts you've defined in `config.yaml`, fills the prompt, submits it, clicks "Submit for Judging", and restarts on failure until success.
 
 ```bash
-python -m src.app run [challenge_name]
+python -m src.app run
 ```
-
-Ex: 
-```bash
-python -m src.app run getting_started
-```
-
-*   `challenge_name`: The name of the challenge defined in your `config.yaml` (defaults to `getting_started`).
 
 ### Run the Judging Loop
 
-This command repeatedly clicks the "Submit for Judging" button. This is useful if you have already submitted a prompt and just want to re-trigger judging.
+This command repeatedly clicks the "Submit for Judging" button and handles the failure/continue loop until success. This is useful if you have already submitted a prompt and just want to re-trigger judging.
 
 ```bash
-python -m src.app judge [challenge_name]
+python -m src.app judge
 ```
 
-Ex: 
-```bash
-python -m src.app judge getting_started
-```
+### Browser Options
 
-### Resubmit a Previous Attempt
-
-This command navigates to a specific submission and re-triggers the judging process.
+By default, the script will connect to a running browser instance. If you need to launch a new one, you can use the `--launch-browser` flag with either command:
 
 ```bash
-python -m src.app resubmit <submission_id>
+python -m src.app run --launch-browser
+python -m src.app judge --launch-browser
 ```
-
 
 ## Documentation
 
