@@ -1,17 +1,17 @@
-base_url: "https://www.hackaprompt.com/track/pliny/pliny_4_challenge"
+base_url: "https://www.hackaprompt.com/track/pliny/pliny_2_challenge"
 
 # General automation settings
 automation_settings:
   browser_executable_path: "brave-browser-beta"
-  user_data_dir: "/tmp/brave-automation"
+  user_data_dir: "profiles/brave-beta"
   remote_debugging_port: 9222
   browser_ws_endpoint: "http://localhost:9222"
   navigate_to_base_url: false
   loop_on_failure: true
-  max_retries: 100
+  max_retries: 50
   random_delay: true
-  delay_min_sec: 7
-  delay_max_sec: 30
+  delay_min_sec: 4
+  delay_max_sec: 12
 
 # Page element selectors for the challenge
 selectors:
@@ -29,22 +29,3 @@ selectors:
 prompts:
   - file: "prompts/prompt_1.txt"
     # The script logic will handle the expected outcome, e.g., "buttons_clickable"
-
-# Browser cleanup configuration
-cleanup:
-  # Set to false to disable automatic cleanup (recommended for manual browser management)
-  enabled: false
-  
-  # Never close browser automatically, even on script errors or completion
-  never_auto_close: true
-  
-  # Inactivity timeout before auto-cleanup (only used if enabled: true)
-  inactivity_timeout:
-    hours: 1
-    minutes: 30
-  
-  # Whether to close individual tabs or the entire browser instance
-  close_mode: "instance"  # Options: "tabs" or "instance"
-  
-  # Grace period after automation completion before starting inactivity monitoring
-  grace_period_minutes: 5

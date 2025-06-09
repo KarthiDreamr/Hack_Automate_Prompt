@@ -1,25 +1,11 @@
 import asyncio
 import argparse
-import signal
-import sys
 import logging
 from playwright.async_api import async_playwright
 
 from .config_loader import load_config
 from .browser import BrowserManager
 from .challenge_executor import ChallengeExecutor
-
-
-async def shutdown(signal, loop):
-    """Gracefully stop all running tasks."""
-    logging.info(f"Received exit signal {signal.name}...")
-
-    tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
-    [task.cancel() for task in tasks]
-
-    logging.info("Cancelling tasks...")
-    await asyncio.gather(*tasks, return_exceptions=True)
-    # loop.stop() # This is not needed and can cause issues.
 
 
 async def run_challenge_automation(connect_to_existing_browser: bool = True):
@@ -48,14 +34,7 @@ async def run_challenge_automation(connect_to_existing_browser: bool = True):
         except Exception as e:
             print(f"An unexpected error occurred in run_challenge_automation: {e}")
         finally:
-            try:
-                if browser_manager.browser_process:
-                    browser_manager.cleanup_browser()
-                elif browser_manager.browser and browser_manager.browser.is_connected():
-                    print("Closing browser connection...")
-                    await browser_manager.browser.close()
-            except asyncio.CancelledError:
-                pass  # Ignore cancellation errors during cleanup
+            # The browser cleanup logic has been removed to allow manual closing.
             print("Automation run finished.")
 
 
@@ -85,14 +64,7 @@ async def run_judging_loop_automation(connect_to_existing_browser: bool = True):
         except Exception as e:
             print(f"An unexpected error occurred in judging loop automation: {e}")
         finally:
-            try:
-                if browser_manager.browser_process:
-                    browser_manager.cleanup_browser()
-                elif browser_manager.browser and browser_manager.browser.is_connected():
-                    print("Closing browser connection...")
-                    await browser_manager.browser.close()
-            except asyncio.CancelledError:
-                pass  # Ignore cancellation errors during cleanup
+            # The browser cleanup logic has been removed to allow manual closing.
             print("Judging loop finished.")
 
 
@@ -137,8 +109,6 @@ if __name__ == "__main__":
         level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
     )
     loop = asyncio.get_event_loop()
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(sig, lambda s=sig: asyncio.create_task(shutdown(s, loop)))
 
     try:
         loop.run_until_complete(main())

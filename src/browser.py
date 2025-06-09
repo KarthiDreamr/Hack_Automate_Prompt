@@ -8,6 +8,7 @@ import requests
 from datetime import datetime
 from playwright.async_api import Playwright, Browser, Page
 from .config_loader import load_config
+import logging
 
 
 class BrowserManager:
@@ -69,11 +70,26 @@ class BrowserManager:
                 print("No suitable existing page found. Creating a new page.")
                 self.page = await self.browser.contexts[0].new_page()
         else:
-            print("Launching a new browser instance.")
-            self.browser = await self.playwright.chromium.launch(headless=False)
-            context = await self.browser.new_context()
-            self.page = await context.new_page()
-            print("Successfully launched new browser and obtained a page.")
+            print("Launching a new browser instance via manual process.")
+            self.start_browser_process()
+
+            # Construct the endpoint URL if not explicitly configured
+            ws_endpoint = (
+                self.ws_endpoint
+                if self.ws_endpoint
+                else f"http://localhost:{self.remote_debugging_port}"
+            )
+            print(f"Connecting to newly launched browser at {ws_endpoint}...")
+
+            try:
+                self.browser = await self.playwright.chromium.connect_over_cdp(
+                    ws_endpoint
+                )
+                self.page = await self.browser.contexts[0].new_page()
+                print("Successfully connected to new browser and obtained a page.")
+            except Exception as e:
+                print(f"Failed to connect to the new browser instance: {e}")
+                return None
 
         return self.page
 
@@ -181,12 +197,11 @@ class BrowserManager:
             else:
                 time_since_activity = datetime.now() - self.last_activity_time
                 if time_since_activity.total_seconds() >= timeout_seconds:
-                    print(
+                    logging.info(
                         f"🔄 No activity detected for {timeout_config.get('hours', 0)}h "
-                        f"{timeout_config.get('minutes', 0)}m"
+                        f"{timeout_config.get('minutes', 0)}m. Browser will remain open as cleanup is disabled."
                     )
-                    print("🧹 Initiating automatic cleanup...")
-                    self.cleanup_browser()
+                    # self.cleanup_browser() # Disabled for manual browser management
                     break
 
             time.sleep(check_interval)
@@ -207,52 +222,4 @@ class BrowserManager:
         """Stop the activity monitoring."""
         self.monitoring_active = False
         if self.monitor_thread and self.monitor_thread.is_alive():
-            self.monitor_thread.join(timeout=5)
-
-    def cleanup_browser(self):
-        """Clean up the browser based on configuration."""
-        if not self.browser_process:
-            return
-
-        close_mode = self.cleanup_config.get("close_mode", "instance")
-
-        if close_mode == "tabs":
-            # Close only automation tabs (implement tab-specific cleanup here)
-            print("🗂️ Cleaning up automation tabs...")
-            # This would require more sophisticated tab tracking
-        else:
-            # Close entire browser instance
-            print(
-                "🔄 Terminating automation browser instance "
-                f"(PID: {self.browser_process.pid})..."
-            )
-
-            if sys.platform == "win32":
-                subprocess.call(
-                    ["taskkill", "/F", "/T", "/PID", str(self.browser_process.pid)],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-                self.browser_process.terminate()
-            else:
-                try:
-                    os.killpg(os.getpgid(self.browser_process.pid), signal.SIGTERM)
-                except ProcessLookupError:
-                    print(
-                        f"Browser process group with PID {self.browser_process.pid} "
-                        "already terminated."
-                    )
-                except Exception as e:
-                    print(f"Error during cleanup: {e}")
-                    try:
-                        os.killpg(os.getpgid(self.browser_process.pid), signal.SIGKILL)
-                    except Exception as e_kill:
-                        print(f"Force kill error: {e_kill}")
-
-            try:
-                self.browser_process.wait(timeout=10)
-                print("✅ Browser cleanup completed.")
-            except subprocess.TimeoutExpired:
-                print("⚠️ Browser cleanup timeout - forcing termination.")
-                self.browser_process.kill()
-                self.browser_process.wait()
+            self.monitor_thread.join(timeout=5)   
