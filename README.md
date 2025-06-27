@@ -41,6 +41,10 @@ python -m src.app judge
 
 ### Browser Options
 
+```bash
+brave-browser-beta --remote-debugging-port=9222
+```
+
 By default, the script will connect to a running browser instance. If you need to launch a new one, you can use the `--launch-browser` flag with either command:
 
 ```bash
