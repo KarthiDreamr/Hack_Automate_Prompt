@@ -8,8 +8,8 @@ automation_settings:
   browser_ws_endpoint: "http://localhost:9222"
   navigate_to_base_url: false
   loop_on_failure: true
-  max_retries: 50
-  random_delay: true
+  max_retries: 1000
+  random_delay: false
   delay_min_sec: 4
   delay_max_sec: 12
 
