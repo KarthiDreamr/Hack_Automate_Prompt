@@ -39,19 +39,30 @@ This command repeatedly clicks the "Submit for Judging" button and handles the f
 python -m src.app judge
 ```
 
+### Run the Intent Loop
+
+This command repeatedly pastes the first configured prompt template into the intent textarea, clicks the **Submit Template** button, waits for the result, and refreshes the page on a **Challenge Failed** outcome.  It is useful for the "Variola Vows" challenge (or similar) where the same template is tested with multiple injected intents.
+
+```bash
+python -m src.app run-intent
+```
+
+Use `--launch-browser` if you want the script to launch a fresh browser instance instead of connecting to one that is already running.
+
 ### Browser Options
 
 ```bash
 brave-browser-beta --remote-debugging-port=9222
 ```
 
-By default, the script will connect to a running browser instance. If you need to launch a new one, you can use the `--launch-browser` flag with either command:
+If you need to launch a new browser instead of connecting to an existing one, add the `--launch-browser` flag to any of the commands above:
 
 ```bash
 python -m src.app run --launch-browser
 python -m src.app judge --launch-browser
+python -m src.app run-intent --launch-browser
 ```
 
 ## Documentation
 
-For more detailed information on configuration, development, and the project's architecture, please see the `docs` directory. 
+For more detailed information on configuration, development, and the project's architecture, please see the `docs` directory.

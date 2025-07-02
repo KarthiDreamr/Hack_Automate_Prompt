@@ -68,6 +68,36 @@ async def run_judging_loop_automation(connect_to_existing_browser: bool = True):
             print("Judging loop finished.")
 
 
+async def run_intent_automation(connect_to_existing_browser: bool = True):
+    """Orchestrates the intent loop automation."""
+    config = load_config()
+    if not config:
+        return
+
+    automation_settings = config.get("automation_settings", {})
+
+    async with async_playwright() as playwright:
+        browser_manager = BrowserManager(playwright)
+        try:
+            page = await browser_manager.get_page(
+                connect_to_existing=connect_to_existing_browser
+            )
+
+            if not page:
+                print("Failed to initialize browser or page. Exiting.")
+                return
+
+            executor = ChallengeExecutor(page, config, automation_settings)
+            await executor.run_intent_loop()
+        except asyncio.CancelledError:
+            logging.info("Intent loop cancelled.")
+        except Exception as e:
+            print(f"An unexpected error occurred in intent loop automation: {e}")
+        finally:
+            # The browser cleanup logic has been removed to allow manual closing.
+            print("Intent loop finished.")
+
+
 async def main():
     parser = argparse.ArgumentParser(description="Hack-a-Prompt 2.0 Automation Tool")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -92,6 +122,16 @@ async def main():
         help="Launch a new browser instance instead of connecting to an existing one.",
     )
 
+    # 'intent' command
+    intent_parser = subparsers.add_parser(
+        "run-intent", help="Run the intent loop (paste prompt, submit, refresh on failure)."
+    )
+    intent_parser.add_argument(
+        "--launch-browser",
+        action="store_true",
+        help="Launch a new browser instance instead of connecting to an existing one.",
+    )
+
     args = parser.parse_args()
 
     connect_to_existing = not args.launch_browser
@@ -100,6 +140,8 @@ async def main():
         await run_challenge_automation(connect_to_existing)
     elif args.command == "judge":
         await run_judging_loop_automation(connect_to_existing)
+    elif args.command == "run-intent":
+        await run_intent_automation(connect_to_existing)
 
 
 if __name__ == "__main__":
