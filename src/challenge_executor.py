@@ -1,8 +1,26 @@
+# Standard library
 import random
 import time
-from playwright.async_api import Page
 import os
 import logging
+
+# Third-party
+from playwright.async_api import Page, TimeoutError
+
+# Local imports
+from .config_loader import load_config
+
+# ---------------------------------------------------------------------------
+# Load default timeout/delay configuration from YAML so that Python source code
+# contains **no magic numbers**.  All timing values can now be changed from
+# `config.yaml` alone, keeping the behaviour fully configurable.
+# ---------------------------------------------------------------------------
+
+_CFG = load_config() or {}
+_AUTOMATION_SETTINGS = _CFG.get("automation_settings", {})
+_DEFAULT_TIMEOUTS = _AUTOMATION_SETTINGS.get("timeouts", {})
+_DEFAULT_DELAY_MIN = _AUTOMATION_SETTINGS.get("delay_min_sec", 1)
+_DEFAULT_DELAY_MAX = _AUTOMATION_SETTINGS.get("delay_max_sec", 5)
 
 # Configure logging
 logging.basicConfig(
@@ -67,8 +85,12 @@ async def _fill_prompt_and_submit(
         timeouts = {}
 
     # Retrieve timeout values with sensible defaults
-    prompt_visible_ms = timeouts.get("prompt_visible_ms", 10_000)
-    submit_click_ms = timeouts.get("submit_prompt_click_ms", 5_000)
+    prompt_visible_ms = timeouts.get(
+        "prompt_visible_ms", _DEFAULT_TIMEOUTS.get("prompt_visible_ms")
+    )
+    submit_click_ms = timeouts.get(
+        "submit_prompt_click_ms", _DEFAULT_TIMEOUTS.get("submit_prompt_click_ms")
+    )
 
     logging.info(f"Filling text area ('{prompt_selector}')")
     prompt_area = page.locator(prompt_selector)
@@ -84,8 +106,14 @@ async def _submit_for_judging(page: Page, submit_judging_selector: str, timeouts
     """Waits for and clicks the 'Submit for Judging' button, using configurable timeouts."""
     if timeouts is None:
         timeouts = {}
-    enable_ms = timeouts.get("submit_for_judging_enable_ms", 180_000)
-    click_ms = timeouts.get("submit_for_judging_click_ms", 180_000)
+    enable_ms = timeouts.get(
+        "submit_for_judging_enable_ms",
+        _DEFAULT_TIMEOUTS.get("submit_for_judging_enable_ms"),
+    )
+    click_ms = timeouts.get(
+        "submit_for_judging_click_ms",
+        _DEFAULT_TIMEOUTS.get("submit_for_judging_click_ms"),
+    )
 
     logging.info(f"Waiting for '{submit_judging_selector}' to become enabled...")
     submit_judging_button = page.locator(submit_judging_selector)
@@ -106,7 +134,9 @@ async def _check_for_success(page: Page, timeouts: dict | None = None) -> bool:
     """Checks if the 'Challenge Conquered' popup is visible."""
     if timeouts is None:
         timeouts = {}
-    success_visible_ms = timeouts.get("success_visible_ms", 5_000)
+    success_visible_ms = timeouts.get(
+        "success_visible_ms", _DEFAULT_TIMEOUTS.get("success_visible_ms")
+    )
 
     success_selector = 'h2:has-text("Challenge Conquered! 🎉")'
     success_element = page.locator(success_selector)
@@ -120,7 +150,9 @@ async def _handle_failure_and_restart(page: Page, timeouts: dict | None = None) 
     """Clicks 'Restart Challenge' assuming the failure popup is already visible."""
     if timeouts is None:
         timeouts = {}
-    restart_click_ms = timeouts.get("restart_click_ms", 5_000)
+    restart_click_ms = timeouts.get(
+        "restart_click_ms", _DEFAULT_TIMEOUTS.get("restart_click_ms")
+    )
 
     restart_selector = "button:has-text('Restart Challenge')"
     try:
@@ -141,8 +173,14 @@ async def _handle_judging_failure(page: Page, timeouts: dict | None = None) -> b
     """Handles the visible judging failure popup by clicking 'Continue Current Chat'."""
     if timeouts is None:
         timeouts = {}
-    continue_visible_ms = timeouts.get("continue_button_visible_ms", 5_000)
-    continue_click_ms = timeouts.get("continue_button_click_ms", 5_000)
+    continue_visible_ms = timeouts.get(
+        "continue_button_visible_ms",
+        _DEFAULT_TIMEOUTS.get("continue_button_visible_ms"),
+    )
+    continue_click_ms = timeouts.get(
+        "continue_button_click_ms",
+        _DEFAULT_TIMEOUTS.get("continue_button_click_ms"),
+    )
 
     continue_button_selector = "button:has-text('Continue Current Chat')"
     continue_button = page.locator(continue_button_selector)
@@ -315,7 +353,9 @@ class ChallengeExecutor:
         success_selector = 'h2:has-text("Challenge Conquered! 🎉")'
         failure_selector = 'h2:has-text("Not Quite There Yet 💪")'
 
-        total_wait_sec = self._get_timeout("judging_timeout_sec", 180)
+        total_wait_sec = self._get_timeout(
+            "judging_timeout_sec", _DEFAULT_TIMEOUTS.get("judging_timeout_sec")
+        )
         logging.info(f"Waiting for judging result (up to {total_wait_sec} seconds)...")
 
         start_time = time.time()
@@ -329,7 +369,9 @@ class ChallengeExecutor:
                 logging.info("Failure condition met: Not Quite There Yet 💪")
                 outcome = "failure"
                 break
-            polling_interval_ms = self._get_timeout("polling_interval_ms", 500)
+            polling_interval_ms = self._get_timeout(
+                "polling_interval_ms", _DEFAULT_TIMEOUTS.get("polling_interval_ms")
+            )
             await self.page.wait_for_timeout(polling_interval_ms)
 
         if outcome == "timeout":
@@ -370,8 +412,8 @@ class ChallengeExecutor:
         """Performs a delay if configured."""
         await _perform_delay(
             self.automation_settings.get("random_delay", False),
-            self.automation_settings.get("delay_min_sec", 1),
-            self.automation_settings.get("delay_max_sec", 5),
+            self.automation_settings.get("delay_min_sec", _DEFAULT_DELAY_MIN),
+            self.automation_settings.get("delay_max_sec", _DEFAULT_DELAY_MAX),
             self.page,
         )
 
@@ -446,8 +488,12 @@ class ChallengeExecutor:
     async def _wait_for_intent_outcome(self) -> str:
         """Waits for either a failure popup or times out. Returns 'failure' or 'timeout'."""
         failure_selector = "h3:has-text(\"Challenge Failed\")"
-        total_wait_sec = self._get_timeout("intent_wait_sec", 120)
-        polling_interval_ms = self._get_timeout("polling_interval_ms", 500)
+        total_wait_sec = self._get_timeout(
+            "intent_wait_sec", _DEFAULT_TIMEOUTS.get("intent_wait_sec")
+        )
+        polling_interval_ms = self._get_timeout(
+            "polling_interval_ms", _DEFAULT_TIMEOUTS.get("polling_interval_ms")
+        )
 
         logging.info(f"Waiting up to {total_wait_sec} seconds for intent outcome...")
         start_time = time.time()
@@ -459,6 +505,116 @@ class ChallengeExecutor:
                 break
             await self.page.wait_for_timeout(polling_interval_ms)
         return outcome
+
+    async def run_intent_loop_2(self):
+        """
+        Runs an intent loop that submits a prompt once, then repeatedly checks
+        for a 'Try Again' button. If found, it resets the state and
+        resubmits. If not found after a timeout, it assumes success.
+        """
+        if not self._validate_config(["base_url", "selectors", "prompts"]):
+            return
+
+        if self.automation_settings.get("navigate_to_base_url", True):
+            await _navigate_to_challenge(self.page, self.config["base_url"])
+
+        prompts = self._get_prompts()
+        if not prompts:
+            logging.error("No valid prompts found in the configuration.")
+            return
+
+        prompt_text = prompts[0].get("text", "")
+        if not prompt_text:
+            logging.warning("Prompt text is empty. Stopping.")
+            return
+
+        max_retries = self.automation_settings.get("max_retries", 1000)
+        logging.info(f"Starting Intent Loop 2 with max_retries={max_retries}")
+
+        # Prepare selectors and timeouts
+        selectors_cfg = self.config.get("selectors", {})
+        textarea_selector = selectors_cfg.get(
+            "intent_textarea", selectors_cfg.get("prompt_textarea")
+        )
+        submit_selector = selectors_cfg.get(
+            "submit_template_button", selectors_cfg.get("submit_prompt_button")
+        )
+        timeouts = self.automation_settings.get("timeouts", {})
+
+        # Step 1: Perform the initial submission
+        logging.info("--- Performing initial prompt submission ---")
+        await _fill_prompt_and_submit(
+            self.page, textarea_selector, submit_selector, prompt_text, timeouts
+        )
+        await self._perform_step_delay()
+
+        # Step 2: Loop to check for failure ('Try Again' button) or success (timeout)
+        for attempt in range(max_retries):
+            logging.info(
+                f"--- Intent Attempt {attempt + 1}/{max_retries}: Waiting for outcome ---"
+            )
+
+            try_again_selector = 'button:has-text("Try Again")'
+            outcome_wait_sec = self._get_timeout(
+                "intent_outcome_wait_sec",
+                _DEFAULT_TIMEOUTS.get("intent_outcome_wait_sec"),
+            )
+
+            try:
+                # Wait for the failure condition
+                await self.page.locator(try_again_selector).wait_for(
+                    state="visible", timeout=outcome_wait_sec * 1000
+                )
+
+                # Failure detected: Reset and re-submit
+                logging.info("'Try Again' button detected. Resetting and resubmitting.")
+                await self.page.locator(try_again_selector).click(
+                    timeout=self._get_timeout(
+                        "intent_button_click_ms",
+                        _DEFAULT_TIMEOUTS.get("intent_button_click_ms"),
+                    )
+                )
+                await self._perform_step_delay()
+
+                back_button_selector = (
+                    "button.z-20.cursor-pointer.h-10.w-10.border-azure\\/40.rounded-none"
+                    ":has(svg.lucide-chevron-left)"
+                )
+                await self.page.locator(back_button_selector).click(
+                    timeout=self._get_timeout(
+                        "intent_button_click_ms",
+                        _DEFAULT_TIMEOUTS.get("intent_button_click_ms"),
+                    )
+                )
+                await self._perform_step_delay()
+
+                await _fill_prompt_and_submit(
+                    self.page, textarea_selector, submit_selector, prompt_text, timeouts
+                )
+
+            except TimeoutError:
+                # Success condition: 'Try Again' button did not appear
+                logging.info(
+                    "'Try Again' button not found within timeout. Challenge Conquered!"
+                )
+                await _take_screenshot(self.page, "intent_loop_2_success")
+                return  # Exit successfully
+
+            except Exception as e:
+                logging.error(f"Unexpected error in intent loop 2, attempt {attempt + 1}: {e}")
+                await _take_screenshot(self.page, f"intent_loop_2_error_attempt_{attempt + 1}")
+                logging.info("Refreshing page and re-submitting to recover.")
+                try:
+                    await self.page.reload()
+                    await self._perform_step_delay()
+                    await _fill_prompt_and_submit(
+                        self.page, textarea_selector, submit_selector, prompt_text, timeouts
+                    )
+                except Exception as reload_e:
+                    logging.error(f"Failed to recover by refreshing page: {reload_e}")
+                    break  # Exit loop if recovery fails
+
+        logging.warning("Intent loop 2 finished after reaching max retries without success.")
 
 
 async def execute_interaction_test(

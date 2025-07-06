@@ -31,6 +31,8 @@ class BrowserManager:
         )
         self.ws_endpoint = automation_settings.get("browser_ws_endpoint")
 
+        self.browser_init_wait_sec = automation_settings.get("browser_init_wait_sec", 5)
+
         self.browser_process = None
         self.browser: Browser | None = None
         self.page: Page | None = None
@@ -117,7 +119,7 @@ class BrowserManager:
             )
             print(f"🌐 Browser started with PID: {self.browser_process.pid}")
             print("⏳ Waiting for browser to initialize...")
-            time.sleep(5)  # Give the browser time to start
+            time.sleep(self.browser_init_wait_sec)
         except FileNotFoundError:
             print(
                 f"❌ Error: Could not find '{self.brave_executable_path}'. "
@@ -189,7 +191,7 @@ class BrowserManager:
         time.sleep(grace_minutes * 60)
 
         self.monitoring_active = True
-        check_interval = 30  # Check every 30 seconds
+        check_interval = self.cleanup_config.get("check_interval_sec", 30)
 
         while self.monitoring_active:
             if self.check_browser_activity():

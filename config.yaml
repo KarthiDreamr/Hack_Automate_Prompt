@@ -12,6 +12,9 @@ automation_settings:
   random_delay: false
   delay_min_sec: 4
   delay_max_sec: 12
+  # Wait time (seconds) for the browser to fully launch before connecting
+  browser_init_wait_sec: 5
+
   # Centralised timeout settings (all values in milliseconds unless noted)
   timeouts:
     prompt_visible_ms: 10000          # Wait for prompt textarea to be visible
@@ -24,6 +27,18 @@ automation_settings:
     continue_button_click_ms: 5000    # Timeout for clicking the 'Continue' button
     polling_interval_ms: 500          # Interval between status checks (ms)
     judging_timeout_sec: 180          # Overall judging timeout (seconds)
+    intent_wait_sec: 300            # Wait time for intent-loop outcome (seconds)
+    intent_button_click_ms: 5000      # Timeout for clicking buttons in the second intent loop
+    intent_outcome_wait_sec: 300       # Timeout for the 'Try Again' button to appear in the second intent loop (seconds)
+
+# Browser cleanup and monitoring settings
+cleanup:
+  enabled: false            # Set true if you want automatic cleanup after inactivity
+  inactivity_timeout:
+    hours: 1
+    minutes: 30
+  grace_period_minutes: 5   # Wait after automation finishes before monitoring starts
+  check_interval_sec: 30    # Interval between browser activity checks
 
 # Page element selectors for the challenge
 selectors:

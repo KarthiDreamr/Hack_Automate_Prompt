@@ -88,7 +88,8 @@ async def run_intent_automation(connect_to_existing_browser: bool = True):
                 return
 
             executor = ChallengeExecutor(page, config, automation_settings)
-            await executor.run_intent_loop()
+            # await executor.run_intent_loop()
+            await executor.run_intent_loop_2()
         except asyncio.CancelledError:
             logging.info("Intent loop cancelled.")
         except Exception as e:
