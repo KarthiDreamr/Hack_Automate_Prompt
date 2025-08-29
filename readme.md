@@ -67,6 +67,16 @@ python -m src.app agent-track-submit --text "Hello from agent"
 
 Use `--launch-browser` if you want the script to launch a fresh browser instance instead of connecting to one that is already running.
 
+### Agent Track Submit with Retry
+
+This command fills the intent textarea, clicks the **Submit Template** button, and then automatically clicks the **Try Again** button until `max_retries` is reached (from config.yaml). Provide your own text via `--text`.
+
+```bash
+python -m src.app agent-track-submit-retry --text "Hello from agent"
+```
+
+Use `--launch-browser` if you want the script to launch a fresh browser instance instead of connecting to one that is already running.
+
 ### Browser Options
 
 ```bash
@@ -80,6 +90,7 @@ python -m src.app run --launch-browser
 python -m src.app judge --launch-browser
 python -m src.app run-intent --launch-browser
 python -m src.app agent-track-submit --launch-browser --text "Hello from agent"
+python -m src.app agent-track-submit-retry --launch-browser --text "Hello from agent"
 ```
 
 ## Documentation

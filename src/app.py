@@ -128,6 +128,39 @@ async def run_agent_track_submit_automation(connect_to_existing_browser: bool = 
             print("Agent track submit finished.")
 
 
+async def run_agent_track_submit_retry_automation(connect_to_existing_browser: bool = True, text: str = ""):
+    """Orchestrates the agent-track-submit retry automation."""
+    config = load_config()
+    if not config:
+        return
+
+    automation_settings = config.get("automation_settings", {})
+
+    async with async_playwright() as playwright:
+        browser_manager = BrowserManager(playwright)
+        try:
+            page = await browser_manager.get_page(
+                connect_to_existing=connect_to_existing_browser
+            )
+
+            if not page:
+                print("Failed to initialize browser or page. Exiting.")
+                return
+
+            executor = ChallengeExecutor(page, config, automation_settings)
+            await executor.agent_track_submit_with_retry(
+                text, 
+                automation_settings.get("timeouts", {}),
+                automation_settings
+            )
+        except asyncio.CancelledError:
+            logging.info("Agent track submit retry cancelled.")
+        except Exception as e:
+            print(f"An unexpected error occurred in agent track submit retry automation: {e}")
+        finally:
+            print("Agent track submit retry finished.")
+
+
 async def main():
     parser = argparse.ArgumentParser(description="Hack-a-Prompt 2.0 Automation Tool")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -178,6 +211,22 @@ async def main():
         help="Text to fill in the textarea (default: 'Test injection intent')",
     )
 
+    # 'agent-track-submit-retry' command
+    agent_retry_parser = subparsers.add_parser(
+        "agent-track-submit-retry", help="Fill textarea, click Submit Template button, and retry with 'Try Again' button until max_retries."
+    )
+    agent_retry_parser.add_argument(
+        "--launch-browser",
+        action="store_true",
+        help="Launch a new browser instance instead of connecting to an existing one.",
+    )
+    agent_retry_parser.add_argument(
+        "--text",
+        type=str,
+        default="Test injection intent",
+        help="Text to fill in the textarea (default: 'Test injection intent')",
+    )
+
     args = parser.parse_args()
 
     connect_to_existing = not args.launch_browser
@@ -190,6 +239,8 @@ async def main():
         await run_intent_automation(connect_to_existing)
     elif args.command == "agent-track-submit":
         await run_agent_track_submit_automation(connect_to_existing, args.text)
+    elif args.command == "agent-track-submit-retry":
+        await run_agent_track_submit_retry_automation(connect_to_existing, args.text)
 
 
 if __name__ == "__main__":
