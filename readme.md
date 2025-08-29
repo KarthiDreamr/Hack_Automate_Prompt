@@ -23,6 +23,16 @@ This project provides a framework to automate interactions with challenges on `h
 
 ## Commands
 
+### MATS x Trails Challenge Special — Agent Track Submit
+
+This command fills the intent textarea and clicks the **Submit Template** button once. Provide your own text via `--text`.
+
+```bash
+python -m src.app agent-track-submit --text "Hello from agent"
+```
+
+Use `--launch-browser` if you want the script to launch a fresh browser instance instead of connecting to one that is already running.
+
 ### Run the Full Automation Loop
 
 This command runs the full automation loop: it iterates through the prompts you've defined in `config.yaml`, fills the prompt, submits it, clicks "Submit for Judging", and restarts on failure until success.
@@ -47,6 +57,14 @@ This command repeatedly pastes the first configured prompt template into the int
 python -m src.app run-intent
 ```
 
+### Agent Track Submit
+
+This command fills the intent textarea and clicks the **Submit Template** button once. Provide your own text via `--text`.
+
+```bash
+python -m src.app agent-track-submit --text "Hello from agent"
+```
+
 Use `--launch-browser` if you want the script to launch a fresh browser instance instead of connecting to one that is already running.
 
 ### Browser Options
@@ -61,6 +79,7 @@ If you need to launch a new browser instead of connecting to an existing one, ad
 python -m src.app run --launch-browser
 python -m src.app judge --launch-browser
 python -m src.app run-intent --launch-browser
+python -m src.app agent-track-submit --launch-browser --text "Hello from agent"
 ```
 
 ## Documentation
