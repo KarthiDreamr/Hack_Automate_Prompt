@@ -1,6 +1,6 @@
 import logging
 import time
-from ..config import DEFAULT_TIMEOUTS
+from ...config import DEFAULT_TIMEOUTS
 
 
 async def agent_track_submit(self, text: str, timeouts: dict | None = None):
