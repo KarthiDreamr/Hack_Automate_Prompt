@@ -17,7 +17,7 @@ This project provides a framework to automate interactions with challenges on `h
 3.  **Run**:
     *   Connect to an existing browser instance by launching Brave/Chrome with remote debugging:
         ```bash
-        brave-browser --remote-debugging-port=9222
+        brave-browser-beta --remote-debugging-port=9222
         ```
     *   Run one of the commands below.
 
