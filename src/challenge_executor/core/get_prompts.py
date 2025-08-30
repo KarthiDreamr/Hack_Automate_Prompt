@@ -7,7 +7,7 @@ def get_prompts(self) -> list[dict]:
     loaded_prompts = []
     for prompt_config in prompts:
         if "file" in prompt_config:
-            config_dir = os.path.dirname(os.path.abspath("config.yaml"))
+            config_dir = os.path.dirname(os.path.abspath("src/challenge_executor/core/mats_x_trails/config.yaml"))
             loaded_prompts.append(load_prompt_from_file(prompt_config, config_dir))
         elif "text" in prompt_config:
             loaded_prompts.append(prompt_config)
