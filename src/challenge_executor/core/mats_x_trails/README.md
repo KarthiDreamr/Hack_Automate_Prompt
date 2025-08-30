@@ -6,6 +6,7 @@ This module contains automation functions for the MATS x Trails challenge, speci
 
 - `agent_track_submit.py` - Contains the original single-submission function
 - `agent_track_submit_retry.py` - Contains the enhanced retry functionality
+- `config.yaml` - Main configuration file for the MATS x Trails challenge
 
 ## Functions
 
@@ -19,17 +20,26 @@ Original function that performs a single agent track submission:
 Enhanced function that includes retry functionality:
 - Performs the same submission as the original function
 - Automatically clicks the "Try Again" button after each submission
-- Continues looping until `max_retries` is reached (from config.yaml)
+- Continues looping until `max_retries` is reached (from task-specific config)
 - Respects delay settings (min/max delay, random delay option)
 - Includes proper error handling and logging
+- **Extended timeout**: Waits up to 90 seconds for the "Try Again" button to appear
 
-## Configuration
+## Configuration Structure
 
-The functions use settings from `config.yaml`:
-- `max_retries`: Maximum number of attempts (default: 1000)
-- `delay_min_sec`: Minimum delay between attempts (default: 4)
-- `delay_max_sec`: Maximum delay between attempts (default: 12)
-- `random_delay`: Whether to use random delays (default: false)
+### Main Configuration (`config.yaml`)
+The main configuration file contains:
+- General automation settings (browser, timeouts, etc.)
+- Task-specific configuration references
+- Browser cleanup settings
+- Prompt definitions
+
+### Task-Specific Configuration
+Task-specific settings are stored in `../cbrne/agent_track_submit_config.yaml`:
+- Retry settings (max_retries, delays, random_delay)
+- Task-specific timeouts
+- CSS selectors for page elements
+- Configurable logging messages
 
 ## Usage
 
@@ -50,9 +60,24 @@ await agent_track_submit_with_retry(
 )
 ```
 
+## Configuration Management
+
+- **Main Config**: Located in `src/challenge_executor/core/mats_x_trails/config.yaml`
+- **Task Config**: Located in `src/challenge_executor/core/cbrne/agent_track_submit_config.yaml`
+- **Benefits**: 
+  - Separation of concerns between general and task-specific settings
+  - Easy customization without code changes
+  - Maintainable and testable configuration structure
+
 ## Selectors
 
-The functions use the following page selectors:
+The functions use the following page selectors (configurable in task config):
 - Intent textarea: `textarea[placeholder^="Write your injection intent directly"]`
 - Submit Template button: `button:has-text("Submit Template")`
 - Try Again button: `button:has-text("Try Again")`
+
+## Important Notes
+
+- The "Try Again" button may take up to 60 seconds to appear after submission
+- The script is configured to wait up to 90 seconds for the button to appear
+- This extended timeout helps handle slow server responses and processing delays
