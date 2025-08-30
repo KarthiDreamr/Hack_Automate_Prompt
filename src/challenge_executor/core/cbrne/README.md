@@ -1,62 +1,58 @@
-# CBRNE Challenge Functions
+# CBRNE (Challenge-Based Response and Navigation Engine)
 
-This module contains functions for older challenges that are no longer the primary focus of the automation framework. These functions handle Chemical, Biological, Radiological, Nuclear, and Explosive (CBRNE) related challenges.
+This directory contains task-specific automation modules for different challenge types.
 
-## Commands
+## Configuration Structure
 
-### Run the Full Automation Loop
+Each task-specific module has its own configuration file to avoid hardcoding values in the scripts. This makes the code more maintainable and allows for easy customization without code changes.
 
-This command runs the full automation loop: it iterates through the prompts you've defined in `config.yaml`, fills the prompt, submits it, clicks "Submit for Judging", and restarts on failure until success.
+### Agent Track Submit Configuration
 
-```bash
-python -m src.app run
-```
+The `agent_track_submit_config.yaml` file contains all configuration settings for the agent track submit functionality:
 
-### Run the Judging Loop
+#### Retry Settings
+- `max_retries`: Maximum number of retry attempts (default: 1000)
+- `delay_min_sec`: Minimum delay between attempts in seconds (default: 4)
+- `delay_max_sec`: Maximum delay between attempts in seconds (default: 12)
+- `random_delay`: Whether to use random delays between attempts (default: false)
 
-This command repeatedly clicks the "Submit for Judging" button and handles the failure/continue loop until success. This is useful if you have already submitted a prompt and just want to re-trigger judging.
+#### Timeout Settings
+- `prompt_visible_ms`: Timeout for waiting for prompt textarea to be visible (default: 10000ms)
+- `submit_prompt_click_ms`: Timeout for clicking the submit button (default: 5000ms)
+- `submit_template_enable_ms`: Timeout for waiting for submit button to enable (default: 30000ms)
+- `try_again_button_visible_ms`: Timeout for waiting for "Try Again" button to appear (default: 90000ms)
+- `try_again_button_click_ms`: Timeout for clicking the "Try Again" button (default: 10000ms)
+- `polling_interval_ms`: Interval for checking button state (default: 200ms)
 
-```bash
-python -m src.app judge
-```
+#### CSS Selectors
+- `textarea`: Selector for the intent textarea
+- `submit_button`: Selector for the submit template button
+- `try_again_button`: Selector for the try again button
 
-### Run the Intent Loop
+#### Logging Messages
+All logging messages are configurable to allow for localization or customization.
 
-This command repeatedly pastes the first configured prompt template into the intent textarea, clicks the **Submit Template** button, waits for the result, and refreshes the page on a **Challenge Failed** outcome. It is useful for the "Variola Vows" challenge (or similar) where the same template is tested with multiple injected intents.
+## Usage
 
-```bash
-python -m src.app run-intent
-```
+The configuration is automatically loaded by the scripts. To modify behavior:
 
-### Browser Options
+1. Edit the appropriate task-specific config file
+2. Restart the automation
 
-If you need to launch a new browser instead of connecting to an existing one, add the `--launch-browser` flag to any of the commands above:
+No code changes are required for configuration updates.
 
-```bash
-python -m src.app run --launch-browser
-python -m src.app judge --launch-browser
-python -m src.app run-intent --launch-browser
-```
+## Adding New Task Configurations
 
-## Functions
+To add a new task configuration:
 
-### `run()`
-Executes the full automation loop including prompt filling, submission, and judging.
+1. Create a new `{task_name}_config.yaml` file in this directory
+2. Define the configuration structure with appropriate sections
+3. Update the main `config.yaml` to reference the new task config
+4. Modify the corresponding script to load and use the configuration
 
-### `run_judging_loop()`
-Executes only the judging loop, useful when a prompt has already been submitted.
+## Benefits
 
-### `run_intent_loop()`
-Executes the intent loop for challenges that require testing the same template with multiple intents.
-
-### `run_intent_loop_2()`
-An improved version of the intent loop with better error handling and retry logic.
-
-### `submit_and_wait_for_judging_outcome()`
-Submits a prompt for judging and waits for the outcome.
-
-### `wait_for_judging_outcome()`
-Waits for the judging outcome after submission.
-
-### `wait_for_intent_outcome()`
-Waits for the intent outcome after template submission.
+- **Maintainability**: Configuration changes don't require code modifications
+- **Flexibility**: Easy to adjust timeouts, selectors, and behavior
+- **Testability**: Different configurations can be used for testing
+- **Documentation**: Configuration files serve as documentation for expected behavior
