@@ -1,4 +1,4 @@
-from ..steps import submit_for_judging
+from ...steps import submit_for_judging
 
 
 async def submit_and_wait_for_judging_outcome(self) -> str:

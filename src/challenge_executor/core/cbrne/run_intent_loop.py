@@ -1,5 +1,5 @@
 import logging
-from ..steps import navigate_to_challenge, fill_prompt_and_submit
+from ...steps import navigate_to_challenge, fill_prompt_and_submit
 
 
 async def run_intent_loop(self):

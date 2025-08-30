@@ -1,6 +1,6 @@
 import logging
 import time
-from ..config import DEFAULT_TIMEOUTS
+from ...config import DEFAULT_TIMEOUTS
 
 
 async def wait_for_intent_outcome(self) -> str:

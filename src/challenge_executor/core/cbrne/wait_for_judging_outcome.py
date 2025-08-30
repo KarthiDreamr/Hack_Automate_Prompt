@@ -1,7 +1,7 @@
 import logging
 import time
-from ..utils import take_screenshot
-from ..config import DEFAULT_TIMEOUTS
+from ...utils import take_screenshot
+from ...config import DEFAULT_TIMEOUTS
 
 
 async def wait_for_judging_outcome(self) -> str:

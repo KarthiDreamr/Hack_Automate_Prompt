@@ -1,12 +1,12 @@
 import logging
 import time
-from ..steps import (
+from ...steps import (
     navigate_to_challenge,
     fill_prompt_and_submit,
     submit_for_judging,
     handle_failure_and_restart,
 )
-from ..utils import take_screenshot
+from ...utils import take_screenshot
 
 
 async def run(self):

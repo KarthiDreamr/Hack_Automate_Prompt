@@ -1,8 +1,8 @@
 import logging
 from playwright.async_api import TimeoutError
-from ..steps import fill_prompt_and_submit, navigate_to_challenge
-from ..utils import take_screenshot
-from ..config import DEFAULT_TIMEOUTS
+from ...steps import fill_prompt_and_submit, navigate_to_challenge
+from ...utils import take_screenshot
+from ...config import DEFAULT_TIMEOUTS
 
 
 async def run_intent_loop_2(self):

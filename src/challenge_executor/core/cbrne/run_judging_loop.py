@@ -1,6 +1,6 @@
 import logging
-from ..utils import take_screenshot
-from ..steps import handle_judging_failure
+from ...utils import take_screenshot
+from ...steps import handle_judging_failure
 
 
 async def run_judging_loop(self):

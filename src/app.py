@@ -129,7 +129,7 @@ async def run_agent_track_submit_automation(connect_to_existing_browser: bool = 
 
 
 async def run_agent_track_submit_retry_automation(connect_to_existing_browser: bool = True, text: str = ""):
-    """Orchestrates the agent-track-submit retry automation."""
+    """Orchestrates the agent-track-submit-retry automation."""
     config = load_config()
     if not config:
         return
@@ -148,11 +148,7 @@ async def run_agent_track_submit_retry_automation(connect_to_existing_browser: b
                 return
 
             executor = ChallengeExecutor(page, config, automation_settings)
-            await executor.agent_track_submit_with_retry(
-                text, 
-                automation_settings.get("timeouts", {}),
-                automation_settings
-            )
+            await executor.agent_track_submit_retry(text, automation_settings.get("timeouts", {}))
         except asyncio.CancelledError:
             logging.info("Agent track submit retry cancelled.")
         except Exception as e:
@@ -213,7 +209,7 @@ async def main():
 
     # 'agent-track-submit-retry' command
     agent_retry_parser = subparsers.add_parser(
-        "agent-track-submit-retry", help="Fill textarea, click Submit Template button, and retry with 'Try Again' button until max_retries."
+        "agent-track-submit-retry", help="Fill textarea, click Submit Template, then automatically click Try Again until max_retries."
     )
     agent_retry_parser.add_argument(
         "--launch-browser",
