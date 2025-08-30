@@ -26,7 +26,7 @@ automation_settings:
 
 # Task-specific configuration files
 task_configs:
-  agent_track_submit: "src/challenge_executor/core/cbrne/agent_track_submit_config.yaml"
+  agent_track_submit: "../cbrne/agent_track_submit_config.yaml"
 
 # Browser cleanup and monitoring settings
 cleanup:
