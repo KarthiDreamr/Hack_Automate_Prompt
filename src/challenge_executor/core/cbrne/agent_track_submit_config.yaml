@@ -1,0 +1,39 @@
+# Agent Track Submit Configuration
+# This file contains task-specific settings for the agent_track_submit functionality
+
+# Retry configuration
+retry_settings:
+  max_retries: 1000
+  delay_min_sec: 4
+  delay_max_sec: 12
+  random_delay: false
+
+# Timeout settings specific to agent track submit
+timeouts:
+  prompt_visible_ms: 10000
+  submit_prompt_click_ms: 5000
+  submit_template_enable_ms: 30000  # Fallback timeout for button enable
+  try_again_button_visible_ms: 90000  # Wait up to 90 seconds for "Try Again" button to appear
+  try_again_button_click_ms: 10000    # Timeout for clicking the "Try Again" button
+  polling_interval_ms: 200  # Interval for checking button state
+
+# CSS selectors for page elements
+selectors:
+  textarea: 'textarea[placeholder^="Write your injection intent directly"]'
+  submit_button: 'button:has-text("Submit Template")'
+  try_again_button: 'button:has-text("Try Again")'
+
+# Logging messages
+logging:
+  filling_textarea: "Filling intent textarea for agent-track-submit"
+  waiting_submit_button: "Waiting for 'Submit Template' button to enable, then clicking"
+  button_timeout_warning: "'Submit Template' button did not enable within timeout; attempting click anyway"
+  waiting_try_again: "Waiting for 'Try Again' button to appear (timeout: 90s)"
+  clicking_try_again: "Clicking 'Try Again' button (attempt {attempt})"
+  waiting_before_next: "Waiting {delay:.2f} seconds before next attempt"
+  waiting_after_error: "Waiting {delay:.2f} seconds before retrying after error"
+  starting_attempt: "Starting attempt {attempt}/{max_retries}"
+  reached_max_retries: "Reached maximum retries ({max_retries}). Stopping."
+  error_during_attempt: "Error during attempt {attempt}: {error}"
+  error_max_retries: "Reached maximum retries ({max_retries}). Stopping due to error."
+  completed_retry: "Completed agent_track_submit_with_retry after {attempts} attempts"
