@@ -3,7 +3,7 @@ import os
 from typing import Any, Dict
 
 
-def load_config(config_path: str = "config.yaml") -> Dict[str, Any] | None:
+def load_config(config_path: str = "src/challenge_executor/core/mats_x_trails/config.yaml") -> Dict[str, Any] | None:
     """Loads the YAML configuration file."""
     try:
         with open(config_path, "r") as f:
