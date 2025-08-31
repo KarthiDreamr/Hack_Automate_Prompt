@@ -4,21 +4,15 @@ This module contains automation functions for the MATS x Trails challenge, speci
 
 ## Files
 
-- `agent_track_submit.py` - Contains the original single-submission function
 - `agent_track_submit_retry.py` - Contains the enhanced retry functionality
 - `config.yaml` - Main configuration file for the MATS x Trails challenge
 
 ## Functions
 
-### `agent_track_submit(text, timeouts=None)`
-Original function that performs a single agent track submission:
-- Fills the intent textarea with the provided text
-- Submits the template
-- Handles button enable/disable states
-
 ### `agent_track_submit_with_retry(text, timeouts=None, config=None)`
 Enhanced function that includes retry functionality:
-- Performs the same submission as the original function
+- Fills the intent textarea with the provided text
+- Submits the template
 - Automatically clicks the "Try Again" button after each submission
 - Continues looping until `max_retries` is reached (from task-specific config)
 - Respects delay settings (min/max delay, random delay option)
@@ -45,13 +39,6 @@ Task-specific settings are stored in `../cbrne/agent_track_submit_config.yaml`:
 
 ### Command Line Usage
 
-#### Agent Track Submit (Single Submission)
-This command fills the intent textarea and clicks the **Submit Template** button once:
-
-```bash
-python -m src.app agent-track-submit --text "Your intent text here"
-```
-
 #### Agent Track Submit with Retry
 This command fills the intent textarea, clicks the **Submit Template** button, and then automatically clicks the **Try Again** button until `max_retries` is reached:
 
@@ -62,10 +49,7 @@ python -m src.app agent-track-submit-retry --text "Your intent text here"
 ### Programmatic Usage
 
 ```python
-from challenge_executor.core.mats_x_trails import agent_track_submit, agent_track_submit_with_retry
-
-# Basic usage of original function
-await agent_track_submit("Your intent text here")
+from challenge_executor.core.mats_x_trails import agent_track_submit_with_retry
 
 # Basic usage of retry function
 await agent_track_submit_with_retry("Your intent text here")

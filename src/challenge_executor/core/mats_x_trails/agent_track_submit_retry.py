@@ -25,63 +25,6 @@ def load_task_config(config_path: str = None) -> dict:
         return {}
 
 
-async def agent_track_submit(self, text: str, timeouts: dict | None = None):
-    if timeouts is None:
-        timeouts = {}
-
-    # Load task-specific configuration
-    task_config = load_task_config()
-    task_timeouts = task_config.get("timeouts", {})
-    task_selectors = task_config.get("selectors", {})
-    task_logging = task_config.get("logging", {})
-
-    prompt_visible_ms = timeouts.get(
-        "prompt_visible_ms", 
-        task_timeouts.get("prompt_visible_ms", DEFAULT_TIMEOUTS.get("prompt_visible_ms"))
-    )
-    submit_click_ms = timeouts.get(
-        "submit_prompt_click_ms", 
-        task_timeouts.get("submit_prompt_click_ms", DEFAULT_TIMEOUTS.get("submit_prompt_click_ms"))
-    )
-    enable_wait_ms = timeouts.get(
-        "submit_template_enable_ms", 
-        task_timeouts.get("submit_template_enable_ms", DEFAULT_TIMEOUTS.get("submit_for_judging_enable_ms"))
-    )
-
-    textarea_selector = task_selectors.get(
-        "textarea", 
-        'textarea'
-    )
-    submit_button_selector = task_selectors.get(
-        "submit_button", 
-        'button:has-text("Submit Template")'
-    )
-
-    logging.info(task_logging.get("filling_textarea", "Filling intent textarea for agent-track-submit"))
-    textarea = self.page.locator(textarea_selector)
-    await textarea.wait_for(state="visible", timeout=prompt_visible_ms)
-    await textarea.fill(text)
-
-    logging.info(task_logging.get("waiting_submit_button", "Waiting for 'Submit Template' button to enable, then clicking"))
-    submit_button = self.page.locator(submit_button_selector)
-    await submit_button.wait_for(state="visible", timeout=prompt_visible_ms)
-
-    start_time = time.time()
-    polling_interval = task_timeouts.get("polling_interval_ms", 200)
-    enable_wait_fallback = task_timeouts.get("enable_wait_fallback_ms", 30000)
-    while True:
-        try:
-            if not await submit_button.is_disabled():
-                break
-        except Exception:
-            pass
-        if (time.time() - start_time) * 1000 > (enable_wait_ms or enable_wait_fallback):
-            logging.warning(task_logging.get("button_timeout_warning", "'Submit Template' button did not enable within timeout; attempting click anyway"))
-            break
-        await self.page.wait_for_timeout(polling_interval)
-
-    await submit_button.click(timeout=submit_click_ms)
-
 
 async def agent_track_submit_with_retry(self, text: str, timeouts: dict | None = None, config: dict | None = None):
     """
