@@ -43,6 +43,24 @@ Task-specific settings are stored in `../cbrne/agent_track_submit_config.yaml`:
 
 ## Usage
 
+### Command Line Usage
+
+#### Agent Track Submit (Single Submission)
+This command fills the intent textarea and clicks the **Submit Template** button once:
+
+```bash
+python -m src.app agent-track-submit --text "Your intent text here"
+```
+
+#### Agent Track Submit with Retry
+This command fills the intent textarea, clicks the **Submit Template** button, and then automatically clicks the **Try Again** button until `max_retries` is reached:
+
+```bash
+python -m src.app agent-track-submit-retry --text "Your intent text here"
+```
+
+### Programmatic Usage
+
 ```python
 from challenge_executor.core.mats_x_trails import agent_track_submit, agent_track_submit_with_retry
 

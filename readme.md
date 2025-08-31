@@ -21,17 +21,19 @@ This project provides a framework to automate interactions with challenges on `h
         ```
     *   Run one of the commands below.
 
-## Commands
+## Browser Setup
 
-### MATS x Trails Challenge — Agent Track Submit
+### Download Brave Beta Browser
 
-This command fills the intent textarea and clicks the **Submit Template** button once. Provide your own text via `--text`.
+Download Brave Beta from the official website: https://brave.com/download-beta/
+
+### Browser Launch Command
 
 ```bash
-python -m src.app agent-track-submit --text "Hello from agent"
+brave-browser-beta --remote-debugging-port=9222
 ```
 
-Use `--launch-browser` if you want the script to launch a fresh browser instance instead of connecting to one that is already running.
+## Commands
 
 ### Agent Track Submit with Retry
 
