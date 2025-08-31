@@ -52,7 +52,7 @@ class ChallengeExecutor:
         return await run_intent_loop_2(self)
 
     async def agent_track_submit(self, text: str, timeouts: dict | None = None):
-        from .agent_track_submit import agent_track_submit
+        from .mats_x_trails.agent_track_submit_retry import agent_track_submit
         return await agent_track_submit(self, text, timeouts)
 
     async def agent_track_submit_retry(self, text: str, timeouts: dict | None = None):
