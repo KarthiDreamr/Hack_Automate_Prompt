@@ -11,11 +11,12 @@ def load_task_config(config_path: str = None) -> dict:
     if config_path is None:
         # Default path relative to the script location
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        config_path = os.path.join(script_dir, "..", "cbrne", "agent_track_submit_config.yaml")
+        config_path = os.path.join(script_dir, "config.yaml")
     
     try:
         with open(config_path, 'r') as f:
-            return yaml.safe_load(f)
+            config = yaml.safe_load(f)
+            return config.get("agent_track_submit", {})
     except FileNotFoundError:
         logging.warning(f"Task config file not found at {config_path}, using defaults")
         return {}
@@ -49,7 +50,7 @@ async def agent_track_submit(self, text: str, timeouts: dict | None = None):
 
     textarea_selector = task_selectors.get(
         "textarea", 
-        'textarea[placeholder^="Write your injection intent directly"]'
+        'textarea'
     )
     submit_button_selector = task_selectors.get(
         "submit_button", 
@@ -67,13 +68,14 @@ async def agent_track_submit(self, text: str, timeouts: dict | None = None):
 
     start_time = time.time()
     polling_interval = task_timeouts.get("polling_interval_ms", 200)
+    enable_wait_fallback = task_timeouts.get("enable_wait_fallback_ms", 30000)
     while True:
         try:
             if not await submit_button.is_disabled():
                 break
         except Exception:
             pass
-        if (time.time() - start_time) * 1000 > (enable_wait_ms or 30000):
+        if (time.time() - start_time) * 1000 > (enable_wait_ms or enable_wait_fallback):
             logging.warning(task_logging.get("button_timeout_warning", "'Submit Template' button did not enable within timeout; attempting click anyway"))
             break
         await self.page.wait_for_timeout(polling_interval)
@@ -119,7 +121,7 @@ async def agent_track_submit_with_retry(self, text: str, timeouts: dict | None =
     )
     try_again_button_visible_ms = timeouts.get(
         "try_again_button_visible_ms", 
-        task_timeouts.get("try_again_button_visible_ms", 90000)  # Default 90 seconds
+        task_timeouts.get("try_again_button_visible_ms", 90000)
     )
     try_again_button_click_ms = timeouts.get(
         "intent_button_click_ms", 
@@ -128,7 +130,7 @@ async def agent_track_submit_with_retry(self, text: str, timeouts: dict | None =
 
     textarea_selector = task_selectors.get(
         "textarea", 
-        'textarea[placeholder^="Write your injection intent directly"]'
+        'textarea'
     )
     submit_button_selector = task_selectors.get(
         "submit_button", 
@@ -161,13 +163,14 @@ async def agent_track_submit_with_retry(self, text: str, timeouts: dict | None =
 
             start_time = time.time()
             polling_interval = task_timeouts.get("polling_interval_ms", 200)
+            enable_wait_fallback = task_timeouts.get("enable_wait_fallback_ms", 30000)
             while True:
                 try:
                     if not await submit_button.is_disabled():
                         break
                 except Exception:
                     pass
-                if (time.time() - start_time) * 1000 > (enable_wait_ms or 30000):
+                if (time.time() - start_time) * 1000 > (enable_wait_ms or enable_wait_fallback):
                     logging.warning(task_logging.get("button_timeout_warning", "'Submit Template' button did not enable within timeout; attempting click anyway"))
                     break
                 await self.page.wait_for_timeout(polling_interval)
