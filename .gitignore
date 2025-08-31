@@ -4,3 +4,4 @@ __pycache__/
 profiles/brave-beta/
 *.pyc
 src/__pycache__/config_loader.cpython-313.pyc
+quick-command.txt
