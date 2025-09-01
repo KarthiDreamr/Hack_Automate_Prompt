@@ -63,3 +63,41 @@ python -m src.app agent-track-submit-retry --launch-browser --text "Hello from a
 For more detailed information on configuration, development, and the project's architecture, please see the `docs` directory.
 
 For older challenge functions (run, judge, run-intent), see the `src/challenge_executor/core/cbrne/README.md` file.
+
+## Configuration
+
+### Creating Your Config File
+
+**Important**: Real configuration files containing your specific settings are not committed to git for security reasons. You must create your own config file from the provided templates.
+
+1. **Main Configuration**: Copy the template to create your main config:
+   ```bash
+   cp template.config.yaml config.yaml
+   ```
+
+2. **Challenge-Specific Configs**: Copy challenge-specific templates as needed:
+   ```bash
+   # For MATS x Trails challenge
+   cp src/challenge_executor/core/mats_x_trails/template.config.yaml src/challenge_executor/core/mats_x_trails/config.yaml
+   
+   # For CBRNE challenge
+   cp src/challenge_executor/core/cbrne/template.config.yaml src/challenge_executor/core/cbrne/config.yaml
+   ```
+
+3. **Edit Your Config**: Modify the copied config files with your specific:
+   - Challenge URLs
+   - CSS selectors
+   - Timeout values
+   - Browser settings
+   - Custom prompts
+
+### Template Files vs Real Configs
+
+- **Template files** (committed to git): `template.config.yaml` in each directory
+- **Real config files** (gitignored): `config.yaml` in each directory
+
+Each directory containing a config file has its own `.gitignore` file that excludes the real `config.yaml` while allowing the `template.config.yaml` to be committed. This ensures that:
+- Sensitive configuration data is never accidentally committed
+- Templates provide examples and starting points
+- Users can customize their setup without affecting others
+- Each challenge module manages its own configuration independently

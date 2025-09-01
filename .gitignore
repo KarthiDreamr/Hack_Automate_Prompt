@@ -38,6 +38,9 @@ Thumbs.db
 profiles/brave-beta/
 quick-command.txt
 
+# Main configuration file (gitignored for security)
+config.yaml
+
 # Temporary files
 *.tmp
 *.temp

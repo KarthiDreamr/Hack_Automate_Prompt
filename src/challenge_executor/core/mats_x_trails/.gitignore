@@ -1,0 +1,2 @@
+# Ignore real config files, allow template files
+config.yaml
