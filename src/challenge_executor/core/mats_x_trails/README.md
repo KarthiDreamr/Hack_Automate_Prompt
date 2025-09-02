@@ -43,8 +43,20 @@ Task-specific settings are stored in `../cbrne/agent_track_submit_config.yaml`:
 This command fills the intent textarea, clicks the **Submit Template** button, and then automatically clicks the **Try Again** button until `max_retries` is reached:
 
 ```bash
+# Basic usage without model selection
 python -m src.app agent-track-submit-retry --text "Your intent text here"
+
+# With model selection from dropdown
+python -m src.app agent-track-submit-retry --text "Your intent text here" --model "fair river"
 ```
+
+**Available models for selection**:
+- fair river
+- gentle window
+- optimistic bird
+- dazzling stream
+- happy echo
+- yellow mountain
 
 ### Programmatic Usage
 

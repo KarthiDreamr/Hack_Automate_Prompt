@@ -100,7 +100,7 @@ async def run_intent_automation(connect_to_existing_browser: bool = True):
 
 
 
-async def run_agent_track_submit_retry_automation(connect_to_existing_browser: bool = True, text: str = ""):
+async def run_agent_track_submit_retry_automation(connect_to_existing_browser: bool = True, text: str = "", model: str = None):
     """Orchestrates the agent-track-submit-retry automation."""
     config = load_config()
     if not config:
@@ -120,7 +120,7 @@ async def run_agent_track_submit_retry_automation(connect_to_existing_browser: b
                 return
 
             executor = ChallengeExecutor(page, config, automation_settings)
-            await executor.agent_track_submit_retry(text, automation_settings.get("timeouts", {}))
+            await executor.agent_track_submit_retry(text, model, automation_settings.get("timeouts", {}))
         except asyncio.CancelledError:
             logging.info("Agent track submit retry cancelled.")
         except Exception as e:
@@ -178,6 +178,12 @@ async def main():
         default="Test injection intent",
         help="Text to fill in the textarea (default: 'Test injection intent')",
     )
+    agent_retry_parser.add_argument(
+        "--model",
+        type=str,
+        default=None,
+        help="Model to use for the agent track submit retry (default: None)",
+    )
 
     args = parser.parse_args()
 
@@ -190,7 +196,7 @@ async def main():
     elif args.command == "run-intent":
         await run_intent_automation(connect_to_existing)
     elif args.command == "agent-track-submit-retry":
-        await run_agent_track_submit_retry_automation(connect_to_existing, args.text)
+        await run_agent_track_submit_retry_automation(connect_to_existing, args.text, args.model)
 
 
 if __name__ == "__main__":

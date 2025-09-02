@@ -71,9 +71,5 @@ cleanup:
 
 # Prompts to try for the challenge
 prompts:
-  - file: "prompts/prompt_1.txt"
-    # The script logic will handle the expected outcome, e.g., "buttons_clickable"
-  - file: "prompts/prompt-1-copy.txt"
-    # Complex UwU-style prompt with system instructions
-  - file: "prompts/prompt-temp.txt"
-    # Chinese text prompt for character removal
+  - file: "prompts/prompt.txt"
+    # Single prompt file used by the script

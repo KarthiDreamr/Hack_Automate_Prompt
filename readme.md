@@ -37,11 +37,14 @@ brave-browser-beta --remote-debugging-port=9222
 
 ### Agent Track Submit with Retry
 
-This command fills the intent textarea, clicks the **Submit Template** button, and then automatically clicks the **Try Again** button until `max_retries` is reached (from config.yaml). Provide your own text via `--text`.
+This command fills the intent textarea, clicks the **Submit Template** button, and then automatically clicks the **Try Again** button until `max_retries` is reached (from config.yaml). Provide your own text via `--text`. Optionally specify a model to select from the dropdown via `--model`.
 
 ```bash
 python -m src.app agent-track-submit-retry --text "Hello from agent"
+python -m src.app agent-track-submit-retry --text "Hello from agent" --model "fair river"
 ```
+
+**Available models**: fair river, gentle window, optimistic bird, dazzling stream, happy echo, yellow mountain
 
 Use `--launch-browser` if you want the script to launch a fresh browser instance instead of connecting to one that is already running.
 

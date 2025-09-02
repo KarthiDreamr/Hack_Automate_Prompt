@@ -51,8 +51,8 @@ class ChallengeExecutor:
         from .cbrne.run_intent_loop_2 import run_intent_loop_2
         return await run_intent_loop_2(self)
 
-    async def agent_track_submit_retry(self, text: str, timeouts: dict | None = None):
+    async def agent_track_submit_retry(self, text: str, model: str = None, timeouts: dict | None = None):
         from .mats_x_trails import agent_track_submit_with_retry
-        return await agent_track_submit_with_retry(self, text, timeouts)
+        return await agent_track_submit_with_retry(self, text, model, timeouts)
 
 
