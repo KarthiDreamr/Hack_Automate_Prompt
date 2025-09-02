@@ -27,7 +27,7 @@ automation_settings:
 # Agent track submit specific configuration
 agent_track_submit:
   retry_settings:
-    max_retries: 30
+    max_retries: 50
     delay_min_sec: 1
     delay_max_sec: 5
     random_delay: false
