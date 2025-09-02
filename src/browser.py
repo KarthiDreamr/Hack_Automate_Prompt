@@ -7,16 +7,16 @@ import threading
 import requests
 from datetime import datetime
 from playwright.async_api import Playwright, Browser, Page
-from .config_loader import load_config
 import logging
 
 
 class BrowserManager:
     """Manages the lifecycle of the automation browser, including process and connection."""
 
-    def __init__(self, playwright: Playwright):
+    def __init__(self, playwright: Playwright, config: dict | None = None):
         self.playwright = playwright
-        config = load_config() or {}
+        if config is None:
+            config = {}
         automation_settings = config.get("automation_settings", {})
         self.cleanup_config = config.get("cleanup", {})
 
