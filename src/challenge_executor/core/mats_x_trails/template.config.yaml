@@ -32,7 +32,7 @@ agent_track_submit:
     delay_max_sec: 5
     random_delay: false
     refresh_on_timeout: false
-    refresh_timeout_sec: 30
+    refresh_timeout_sec: 200
   
   timeouts:
     prompt_visible_ms: 10000
