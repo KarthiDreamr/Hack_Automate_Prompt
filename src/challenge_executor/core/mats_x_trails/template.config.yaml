@@ -1,4 +1,4 @@
-base_url: "https://www.hackaprompt.com/track/pliny/pliny_2_challenge"
+base_url: "https://www.hackaprompt.com/track/trails_x_mats/robust_rewording"
 
 # General automation settings
 automation_settings:
@@ -13,8 +13,8 @@ automation_settings:
 
   # Centralised timeout settings (all values in milliseconds unless noted)
   timeouts:
-    prompt_visible_ms: 10000          # Wait for prompt textarea to be visible
-    submit_prompt_click_ms: 5000      # Timeout for clicking the prompt submit button
+    prompt_visible_ms: 1000          # Wait for prompt textarea to be visible
+    submit_prompt_click_ms: 2000      # Timeout for clicking the prompt submit button
     submit_for_judging_enable_ms: 180000  # Wait for 'Submit for Judging' to enable
     submit_for_judging_click_ms: 180000   # Timeout for clicking 'Submit for Judging'
     success_visible_ms: 5000          # Wait for success popup visibility
@@ -24,16 +24,12 @@ automation_settings:
     polling_interval_ms: 500          # Interval between status checks (ms)
     judging_timeout_sec: 180          # Overall judging timeout (seconds)
 
-# Task-specific configuration files
-task_configs:
-  # Challenge-specific configs moved to cbrne directory
-
 # Agent track submit specific configuration
 agent_track_submit:
   retry_settings:
-    max_retries: 1000
-    delay_min_sec: 4
-    delay_max_sec: 12
+    max_retries: 30
+    delay_min_sec: 1
+    delay_max_sec: 5
     random_delay: false
     refresh_on_timeout: false
     refresh_timeout_sec: 30
@@ -42,17 +38,24 @@ agent_track_submit:
     prompt_visible_ms: 10000
     submit_prompt_click_ms: 5000
     submit_template_enable_ms: 30000
-    try_again_button_visible_ms: 90000
+    try_again_button_visible_ms: 15000
     try_again_button_click_ms: 3000
     post_refresh_wait_ms: 2000
-    dropdown_open_ms: 5000
-    dropdown_item_click_ms: 3000
+    dropdown_open_ms: 300
+    dropdown_item_click_ms: 300
     polling_interval_ms: 200
     enable_wait_fallback_ms: 30000
     # Dropdown specific waits
     dropdown_aria_expanded_poll_ms: 100
     dropdown_aria_expanded_max_checks: 20
-    post_selection_wait_ms: 300
+    post_selection_wait_ms: 100
+
+  # Flags to control optional waits (set true to skip/short-circuit waits)
+  flags:
+    skip_post_selection_wait: true
+    skip_submit_enable_wait: true
+    skip_wait_try_again_visible: true
+    fast_dropdown: true
   
   selectors:
     textarea: 'textarea'

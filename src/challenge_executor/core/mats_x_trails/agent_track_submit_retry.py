@@ -40,6 +40,7 @@ async def select_model_from_dropdown(self, model_name: str, timeouts: dict | Non
     task_timeouts = task_config.get("timeouts", {})
     task_selectors = task_config.get("selectors", {})
     task_logging = task_config.get("logging", {})
+    task_flags = task_config.get("flags", {})
 
     # Get timeout settings (no hardcoded fallbacks; use task or global defaults)
     dropdown_open_ms = timeouts.get(
@@ -104,36 +105,47 @@ async def select_model_from_dropdown(self, model_name: str, timeouts: dict | Non
         
         # Use the first found button
         button = dropdown_button.first
-        button_text = await button.text_content()
-        logging.info(task_logging.get("found_dropdown_button", f"Found dropdown button: {button_text[:50]}...").format(preview=(button_text or "").strip()[:50]))
-        
-        # Find and click the dropdown button to open it
-        await button.wait_for(state="visible", timeout=dropdown_open_ms)
-        await button.click()
-        
-        # Wait for dropdown to indicate it is open (aria-expanded=true) or the menu to appear
-        # Poll aria-expanded on the same button while also waiting for menu
         try:
-            for _ in range(int(aria_max_checks)):
-                expanded = await button.get_attribute('aria-expanded')
-                if expanded == 'true':
-                    break
-                await self.page.wait_for_timeout(int(aria_poll_ms))
+            button_text = await button.text_content(timeout=dropdown_open_ms)
         except Exception:
-            pass
-        
-        # Wait for the dropdown menu to appear
+            button_text = None
+        logging.info(task_logging.get("found_dropdown_button", f"Found dropdown button: {(button_text or '').strip()[:50]}").format(preview=(button_text or "").strip()[:50]))
+
+        # Click the dropdown button to open it
+        await button.click()
+
         dropdown_menu = self.page.locator(dropdown_menu_selector)
-        await dropdown_menu.wait_for(state="visible", timeout=dropdown_open_ms)
-        
-        # Scope the search to the opened dropdown menu only
-        model_item = dropdown_menu.locator(model_item_selector)
-        await model_item.wait_for(state="visible", timeout=dropdown_open_ms)
-        await model_item.scroll_into_view_if_needed()
-        await model_item.click(timeout=dropdown_item_click_ms)
-        
-        # Wait a moment for the selection to take effect and menu to close
-        await self.page.wait_for_timeout(int(post_selection_wait_ms))
+
+        # Fast path: skip aria polling and extra waits if enabled
+        if task_flags.get("fast_dropdown", False):
+            await dropdown_menu.wait_for(state="visible", timeout=dropdown_open_ms)
+            model_item = dropdown_menu.locator(model_item_selector)
+            await model_item.wait_for(state="visible", timeout=dropdown_open_ms)
+            await model_item.scroll_into_view_if_needed()
+            await model_item.click(timeout=dropdown_item_click_ms)
+        else:
+            # Wait for dropdown to indicate it is open (aria-expanded=true) with short polling
+            try:
+                for _ in range(int(aria_max_checks)):
+                    expanded = await button.get_attribute('aria-expanded')
+                    if expanded == 'true':
+                        break
+                    await self.page.wait_for_timeout(int(aria_poll_ms))
+            except Exception:
+                pass
+
+            # Wait for the dropdown menu to appear
+            await dropdown_menu.wait_for(state="visible", timeout=dropdown_open_ms)
+
+            # Scope the search to the opened dropdown menu only
+            model_item = dropdown_menu.locator(model_item_selector)
+            await model_item.wait_for(state="visible", timeout=dropdown_open_ms)
+            await model_item.scroll_into_view_if_needed()
+            await model_item.click(timeout=dropdown_item_click_ms)
+
+        # Optional small wait for selection to take effect
+        if not task_flags.get("skip_post_selection_wait", False):
+            await self.page.wait_for_timeout(int(post_selection_wait_ms))
         
         logging.info(task_logging.get("model_selected", f"Successfully selected model: {model_name}").format(model_name=model_name))
         
@@ -160,6 +172,7 @@ async def agent_track_submit_with_retry(self, text: str, model_name: str = None,
     task_timeouts = task_config.get("timeouts", {})
     task_selectors = task_config.get("selectors", {})
     task_logging = task_config.get("logging", {})
+    task_flags = task_config.get("flags", {})
 
     # Get configuration settings
     max_retries = config.get("max_retries", task_retry_settings.get("max_retries", 1000))
@@ -228,19 +241,20 @@ async def agent_track_submit_with_retry(self, text: str, model_name: str = None,
             submit_button = self.page.locator(submit_button_selector)
             await submit_button.wait_for(state="visible", timeout=prompt_visible_ms)
 
-            start_time = time.time()
-            polling_interval = task_timeouts.get("polling_interval_ms", DEFAULT_TIMEOUTS.get("polling_interval_ms"))
-            enable_wait_fallback = task_timeouts.get("enable_wait_fallback_ms", DEFAULT_TIMEOUTS.get("enable_wait_fallback_ms"))
-            while True:
-                try:
-                    if not await submit_button.is_disabled():
+            if not task_flags.get("skip_submit_enable_wait", False):
+                start_time = time.time()
+                polling_interval = task_timeouts.get("polling_interval_ms", DEFAULT_TIMEOUTS.get("polling_interval_ms"))
+                enable_wait_fallback = task_timeouts.get("enable_wait_fallback_ms", DEFAULT_TIMEOUTS.get("enable_wait_fallback_ms"))
+                while True:
+                    try:
+                        if not await submit_button.is_disabled():
+                            break
+                    except Exception:
+                        pass
+                    if (time.time() - start_time) * 1000 > (enable_wait_ms or enable_wait_fallback):
+                        logging.warning(task_logging.get("button_timeout_warning", "'Submit Template' button did not enable within timeout; attempting click anyway"))
                         break
-                except Exception:
-                    pass
-                if (time.time() - start_time) * 1000 > (enable_wait_ms or enable_wait_fallback):
-                    logging.warning(task_logging.get("button_timeout_warning", "'Submit Template' button did not enable within timeout; attempting click anyway"))
-                    break
-                await self.page.wait_for_timeout(polling_interval)
+                    await self.page.wait_for_timeout(polling_interval)
 
             await submit_button.click(timeout=submit_click_ms)
 
@@ -258,7 +272,8 @@ async def agent_track_submit_with_retry(self, text: str, model_name: str = None,
                 await self.page.wait_for_timeout(task_timeouts.get("post_refresh_wait_ms", DEFAULT_TIMEOUTS.get("post_refresh_wait_ms")))
             else:
                 # Wait for the button to be visible with extended timeout
-                await try_again_button.wait_for(state="visible", timeout=try_again_button_visible_ms)
+                if not task_flags.get("skip_wait_try_again_visible", False):
+                    await try_again_button.wait_for(state="visible", timeout=try_again_button_visible_ms)
             
             # Check if we've reached max retries
             if attempt_count >= max_retries:
