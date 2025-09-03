@@ -44,3 +44,4 @@ config.yaml
 # Temporary files
 *.tmp
 *.temp
+src/mats_x_trails/prompts/prompt.txt
