@@ -152,6 +152,7 @@ async def select_model_from_dropdown(self, model_name: str, timeouts: dict | Non
     except Exception as e:
         logging.error(task_logging.get("model_selection_error", f"Error selecting model {model_name}: {str(e)}").format(model_name=model_name, error=str(e)))
         # Continue execution even if model selection fails
+        # Note: Model selection errors are handled by the main error handling loop
         pass
 
 
@@ -179,8 +180,9 @@ async def agent_track_submit_with_retry(self, text: str, model_name: str = None,
     delay_min_sec = config.get("delay_min_sec", task_retry_settings.get("delay_min_sec", 4))
     delay_max_sec = config.get("delay_max_sec", task_retry_settings.get("delay_max_sec", 12))
     random_delay = config.get("random_delay", task_retry_settings.get("random_delay", False))
-    refresh_on_timeout = config.get("refresh_on_timeout", task_retry_settings.get("refresh_on_timeout", False))
-    refresh_timeout_sec = config.get("refresh_timeout_sec", task_retry_settings.get("refresh_timeout_sec", 30))
+    refresh_on_error = config.get("refresh_on_error", task_retry_settings.get("refresh_on_error", False))
+    error_refresh_delay_sec = config.get("error_refresh_delay_sec", task_retry_settings.get("error_refresh_delay_sec", 3))
+    max_error_refreshes = config.get("max_error_refreshes", task_retry_settings.get("max_error_refreshes", 10))
     
     # Get timeout settings
     prompt_visible_ms = timeouts.get(
@@ -218,6 +220,7 @@ async def agent_track_submit_with_retry(self, text: str, model_name: str = None,
     )
 
     attempt_count = 0
+    error_refresh_count = 0
     
     while attempt_count < max_retries:
         attempt_count += 1
@@ -262,32 +265,23 @@ async def agent_track_submit_with_retry(self, text: str, model_name: str = None,
             logging.info(task_logging.get("waiting_try_again", "Waiting for 'Try Again' button to appear"))
             try_again_button = self.page.locator(try_again_button_selector)
 
-            if refresh_on_timeout:
-                # Use refresh timeout instead of waiting for Try Again button
-                logging.info(task_logging.get("refresh_timeout_reached", f"Refresh timeout reached, refreshing page instead of waiting for Try Again button"))
-                await self.page.wait_for_timeout(refresh_timeout_sec * 1000)
-                await self.page.reload()
-                logging.info(task_logging.get("page_refreshed", "Page refreshed successfully, continuing with next attempt"))
-                # Small delay after refresh to ensure page loads properly
-                await self.page.wait_for_timeout(task_timeouts.get("post_refresh_wait_ms", DEFAULT_TIMEOUTS.get("post_refresh_wait_ms")))
-            else:
-                # Wait for the button to be visible with extended timeout (120s). If it doesn't appear, continue to next attempt.
-                if not task_flags.get("skip_wait_try_again_visible", False):
-                    try:
-                        await try_again_button.wait_for(state="visible", timeout=try_again_button_visible_ms)
-                    except Exception:
-                        # Treat absence as success path for this attempt: do not error, just proceed to next attempt
-                        # by looping after the delay below. Skip clicking Try Again.
-                        # Apply delay between attempts (reuse logic below)
-                        if random_delay:
-                            delay = random.uniform(delay_min_sec, delay_max_sec)
-                        else:
-                            delay = delay_min_sec
-                        logging.info(task_logging.get("waiting_before_next", "Waiting {delay:.2f} seconds before next attempt").format(
-                            delay=delay
-                        ))
-                        await self.page.wait_for_timeout(delay * 1000)
-                        continue
+            # Wait for the button to be visible with extended timeout. If it doesn't appear, continue to next attempt.
+            if not task_flags.get("skip_wait_try_again_visible", False):
+                try:
+                    await try_again_button.wait_for(state="visible", timeout=try_again_button_visible_ms)
+                except Exception:
+                    # Treat absence as success path for this attempt: do not error, just proceed to next attempt
+                    # by looping after the delay below. Skip clicking Try Again.
+                    # Apply delay between attempts (reuse logic below)
+                    if random_delay:
+                        delay = random.uniform(delay_min_sec, delay_max_sec)
+                    else:
+                        delay = delay_min_sec
+                    logging.info(task_logging.get("waiting_before_next", "Waiting {delay:.2f} seconds before next attempt").format(
+                        delay=delay
+                    ))
+                    await self.page.wait_for_timeout(delay * 1000)
+                    continue
             
             # Check if we've reached max retries
             if attempt_count >= max_retries:
@@ -296,12 +290,11 @@ async def agent_track_submit_with_retry(self, text: str, model_name: str = None,
                 ))
                 break
             
-            if not refresh_on_timeout:
-                # Click the "Try Again" button
-                logging.info(task_logging.get("clicking_try_again", "Clicking 'Try Again' button (attempt {attempt})").format(
-                    attempt=attempt_count
-                ))
-                await try_again_button.click(timeout=try_again_button_click_ms)
+            # Click the "Try Again" button
+            logging.info(task_logging.get("clicking_try_again", "Clicking 'Try Again' button (attempt {attempt})").format(
+                attempt=attempt_count
+            ))
+            await try_again_button.click(timeout=try_again_button_click_ms)
             
             # Apply delay between attempts
             if random_delay:
@@ -318,6 +311,32 @@ async def agent_track_submit_with_retry(self, text: str, model_name: str = None,
             logging.error(task_logging.get("error_during_attempt", "Error during attempt {attempt}: {error}").format(
                 attempt=attempt_count, error=str(e)
             ))
+            
+            # Handle error refresh if enabled
+            if refresh_on_error and error_refresh_count < max_error_refreshes:
+                error_refresh_count += 1
+                logging.info(task_logging.get("error_refresh_triggered", "Error occurred, refreshing page and continuing (error refresh {count}/{max})").format(
+                    count=error_refresh_count, max=max_error_refreshes
+                ))
+                
+                # Wait before refreshing
+                await self.page.wait_for_timeout(error_refresh_delay_sec * 1000)
+                
+                # Refresh the page
+                await self.page.reload()
+                logging.info(task_logging.get("error_refresh_completed", "Page refreshed after error, continuing workflow"))
+                
+                # Wait for page to load after refresh
+                await self.page.wait_for_timeout(task_timeouts.get("post_refresh_wait_ms", DEFAULT_TIMEOUTS.get("post_refresh_wait_ms")))
+                
+                # Continue to next attempt without incrementing attempt count
+                continue
+            elif refresh_on_error and error_refresh_count >= max_error_refreshes:
+                logging.error(task_logging.get("error_refresh_limit_reached", "Maximum error refreshes ({max}) reached, stopping workflow").format(
+                    max=max_error_refreshes
+                ))
+                break
+            
             if attempt_count >= max_retries:
                 logging.error(task_logging.get("error_max_retries", "Reached maximum retries ({max_retries}). Stopping due to error.").format(
                     max_retries=max_retries
