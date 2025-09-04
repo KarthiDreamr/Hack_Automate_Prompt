@@ -44,4 +44,7 @@ config.yaml
 # Temporary files
 *.tmp
 *.temp
+
+# Prompt files (contain sensitive information)
 src/mats_x_trails/prompts/prompt.txt
+src/mats_x_trails/prompts/prompt.test.txt
