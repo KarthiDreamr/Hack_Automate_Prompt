@@ -4,6 +4,7 @@ import random
 import yaml
 import os
 from ..cbrne.config import DEFAULT_TIMEOUTS
+from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
 
 def load_task_config(config_path: str = None) -> dict:
@@ -269,19 +270,44 @@ async def agent_track_submit_with_retry(self, text: str, model_name: str = None,
             if not task_flags.get("skip_wait_try_again_visible", False):
                 try:
                     await try_again_button.wait_for(state="visible", timeout=try_again_button_visible_ms)
-                except Exception:
-                    # Treat absence as success path for this attempt: do not error, just proceed to next attempt
-                    # by looping after the delay below. Skip clicking Try Again.
-                    # Apply delay between attempts (reuse logic below)
-                    if random_delay:
-                        delay = random.uniform(delay_min_sec, delay_max_sec)
+                except PlaywrightTimeoutError:
+                    # Timeout waiting for 'Try Again'. If configured, refresh the page before continuing.
+                    if refresh_on_error and error_refresh_count < max_error_refreshes:
+                        error_refresh_count += 1
+                        logging.info(task_logging.get("error_refresh_triggered", "Error occurred, refreshing page and continuing (error refresh {count}/{max})").format(
+                            count=error_refresh_count, max=max_error_refreshes
+                        ))
+                        await self.page.wait_for_timeout(error_refresh_delay_sec * 1000)
+                        await self.page.reload()
+                        logging.info(task_logging.get("error_refresh_completed", "Page refreshed after error, continuing workflow"))
+                        await self.page.wait_for_timeout(task_timeouts.get("post_refresh_wait_ms", DEFAULT_TIMEOUTS.get("post_refresh_wait_ms")))
                     else:
-                        delay = delay_min_sec
-                    logging.info(task_logging.get("waiting_before_next", "Waiting {delay:.2f} seconds before next attempt").format(
-                        delay=delay
-                    ))
-                    await self.page.wait_for_timeout(delay * 1000)
+                        # Apply delay between attempts if not refreshing
+                        if random_delay:
+                            delay = random.uniform(delay_min_sec, delay_max_sec)
+                        else:
+                            delay = delay_min_sec
+                        logging.info(task_logging.get("waiting_before_next", "Waiting {delay:.2f} seconds before next attempt").format(
+                            delay=delay
+                        ))
+                        await self.page.wait_for_timeout(delay * 1000)
                     continue
+                except Exception as e:
+                    # Non-timeout error (frame detach, navigation, etc.). Log and refresh if configured.
+                    logging.error(task_logging.get("error_during_attempt", "Error during attempt {attempt}: {error}").format(
+                        attempt=attempt_count, error=f"Try Again wait failed: {str(e)}"
+                    ))
+                    if refresh_on_error and error_refresh_count < max_error_refreshes:
+                        error_refresh_count += 1
+                        logging.info(task_logging.get("error_refresh_triggered", "Error occurred, refreshing page and continuing (error refresh {count}/{max})").format(
+                            count=error_refresh_count, max=max_error_refreshes
+                        ))
+                        await self.page.wait_for_timeout(error_refresh_delay_sec * 1000)
+                        await self.page.reload()
+                        logging.info(task_logging.get("error_refresh_completed", "Page refreshed after error, continuing workflow"))
+                        await self.page.wait_for_timeout(task_timeouts.get("post_refresh_wait_ms", DEFAULT_TIMEOUTS.get("post_refresh_wait_ms")))
+                        continue
+                    raise
             
             # Check if we've reached max retries
             if attempt_count >= max_retries:
