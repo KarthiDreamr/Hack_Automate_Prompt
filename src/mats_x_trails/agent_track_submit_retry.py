@@ -3,8 +3,8 @@ import time
 import random
 import yaml
 import os
-from ..cbrne.config import DEFAULT_TIMEOUTS
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
+
 
 
 def load_task_config(config_path: str = None) -> dict:
@@ -43,27 +43,12 @@ async def select_model_from_dropdown(self, model_name: str, timeouts: dict | Non
     task_logging = task_config.get("logging", {})
     task_flags = task_config.get("flags", {})
 
-    # Get timeout settings (no hardcoded fallbacks; use task or global defaults)
-    dropdown_open_ms = timeouts.get(
-        "dropdown_open_ms",
-        task_timeouts.get("dropdown_open_ms", DEFAULT_TIMEOUTS.get("dropdown_open_ms"))
-    )
-    dropdown_item_click_ms = timeouts.get(
-        "dropdown_item_click_ms",
-        task_timeouts.get("dropdown_item_click_ms", DEFAULT_TIMEOUTS.get("dropdown_item_click_ms"))
-    )
-    aria_poll_ms = timeouts.get(
-        "dropdown_aria_expanded_poll_ms",
-        task_timeouts.get("dropdown_aria_expanded_poll_ms", DEFAULT_TIMEOUTS.get("dropdown_aria_expanded_poll_ms"))
-    )
-    aria_max_checks = timeouts.get(
-        "dropdown_aria_expanded_max_checks",
-        task_timeouts.get("dropdown_aria_expanded_max_checks", DEFAULT_TIMEOUTS.get("dropdown_aria_expanded_max_checks"))
-    )
-    post_selection_wait_ms = timeouts.get(
-        "post_selection_wait_ms",
-        task_timeouts.get("post_selection_wait_ms", DEFAULT_TIMEOUTS.get("post_selection_wait_ms"))
-    )
+    # Get timeout settings from config
+    dropdown_open_ms = timeouts.get("dropdown_open_ms", task_timeouts.get("dropdown_open_ms", 5000))
+    dropdown_item_click_ms = timeouts.get("dropdown_item_click_ms", task_timeouts.get("dropdown_item_click_ms", 3000))
+    aria_poll_ms = timeouts.get("dropdown_aria_expanded_poll_ms", task_timeouts.get("dropdown_aria_expanded_poll_ms", 100))
+    aria_max_checks = timeouts.get("dropdown_aria_expanded_max_checks", task_timeouts.get("dropdown_aria_expanded_max_checks", 20))
+    post_selection_wait_ms = timeouts.get("post_selection_wait_ms", task_timeouts.get("post_selection_wait_ms", 100))
 
     # Get selector settings - use the working selectors we discovered
     dropdown_button_selector = task_selectors.get(
@@ -185,27 +170,12 @@ async def agent_track_submit_with_retry(self, text: str, model_name: str = None,
     error_refresh_delay_sec = config.get("error_refresh_delay_sec", task_retry_settings.get("error_refresh_delay_sec", 3))
     max_error_refreshes = config.get("max_error_refreshes", task_retry_settings.get("max_error_refreshes", 10))
     
-    # Get timeout settings
-    prompt_visible_ms = timeouts.get(
-        "prompt_visible_ms", 
-        task_timeouts.get("prompt_visible_ms", DEFAULT_TIMEOUTS.get("prompt_visible_ms"))
-    )
-    submit_click_ms = timeouts.get(
-        "submit_prompt_click_ms", 
-        task_timeouts.get("submit_prompt_click_ms", DEFAULT_TIMEOUTS.get("submit_prompt_click_ms"))
-    )
-    enable_wait_ms = timeouts.get(
-        "submit_template_enable_ms", 
-        task_timeouts.get("submit_template_enable_ms", DEFAULT_TIMEOUTS.get("submit_for_judging_enable_ms"))
-    )
-    try_again_button_visible_ms = timeouts.get(
-        "try_again_button_visible_ms",
-        task_timeouts.get("try_again_button_visible_ms", DEFAULT_TIMEOUTS.get("try_again_button_visible_ms"))
-    )
-    try_again_button_click_ms = timeouts.get(
-        "intent_button_click_ms", 
-        task_timeouts.get("try_again_button_click_ms", DEFAULT_TIMEOUTS.get("intent_button_click_ms"))
-    )
+    # Get timeout settings from config
+    prompt_visible_ms = timeouts.get("prompt_visible_ms", task_timeouts.get("prompt_visible_ms", 10000))
+    submit_click_ms = timeouts.get("submit_prompt_click_ms", task_timeouts.get("submit_prompt_click_ms", 5000))
+    enable_wait_ms = timeouts.get("submit_template_enable_ms", task_timeouts.get("submit_template_enable_ms", 30000))
+    try_again_button_visible_ms = timeouts.get("try_again_button_visible_ms", task_timeouts.get("try_again_button_visible_ms", 180000))
+    try_again_button_click_ms = timeouts.get("intent_button_click_ms", task_timeouts.get("try_again_button_click_ms", 3000))
 
     textarea_selector = task_selectors.get(
         "textarea", 
@@ -247,8 +217,8 @@ async def agent_track_submit_with_retry(self, text: str, model_name: str = None,
 
             if not task_flags.get("skip_submit_enable_wait", False):
                 start_time = time.time()
-                polling_interval = task_timeouts.get("polling_interval_ms", DEFAULT_TIMEOUTS.get("polling_interval_ms"))
-                enable_wait_fallback = task_timeouts.get("enable_wait_fallback_ms", DEFAULT_TIMEOUTS.get("enable_wait_fallback_ms"))
+                polling_interval = task_timeouts.get("polling_interval_ms", 200)
+                enable_wait_fallback = task_timeouts.get("enable_wait_fallback_ms", 30000)
                 while True:
                     try:
                         if not await submit_button.is_disabled():
@@ -280,7 +250,7 @@ async def agent_track_submit_with_retry(self, text: str, model_name: str = None,
                         await self.page.wait_for_timeout(error_refresh_delay_sec * 1000)
                         await self.page.reload()
                         logging.info(task_logging.get("error_refresh_completed", "Page refreshed after error, continuing workflow"))
-                        await self.page.wait_for_timeout(task_timeouts.get("post_refresh_wait_ms", DEFAULT_TIMEOUTS.get("post_refresh_wait_ms")))
+                        await self.page.wait_for_timeout(task_timeouts.get("post_refresh_wait_ms", 2000))
                     else:
                         # Apply delay between attempts if not refreshing
                         if random_delay:
@@ -305,7 +275,7 @@ async def agent_track_submit_with_retry(self, text: str, model_name: str = None,
                         await self.page.wait_for_timeout(error_refresh_delay_sec * 1000)
                         await self.page.reload()
                         logging.info(task_logging.get("error_refresh_completed", "Page refreshed after error, continuing workflow"))
-                        await self.page.wait_for_timeout(task_timeouts.get("post_refresh_wait_ms", DEFAULT_TIMEOUTS.get("post_refresh_wait_ms")))
+                        await self.page.wait_for_timeout(task_timeouts.get("post_refresh_wait_ms", 2000))
                         continue
                     raise
             
@@ -353,7 +323,7 @@ async def agent_track_submit_with_retry(self, text: str, model_name: str = None,
                 logging.info(task_logging.get("error_refresh_completed", "Page refreshed after error, continuing workflow"))
                 
                 # Wait for page to load after refresh
-                await self.page.wait_for_timeout(task_timeouts.get("post_refresh_wait_ms", DEFAULT_TIMEOUTS.get("post_refresh_wait_ms")))
+                await self.page.wait_for_timeout(task_timeouts.get("post_refresh_wait_ms", 2000))
                 
                 # Continue to next attempt without incrementing attempt count
                 continue
